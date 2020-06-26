@@ -1,2 +1,3 @@
 # AWSTools
-Script tools for setting up bioinformatics data analysis runs on AWS
+
+The package contains tools that we've developed to support our data analysis workflows on AWS.
