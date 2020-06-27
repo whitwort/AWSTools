@@ -6,7 +6,7 @@ The goal here is to provide a highly simplified workflow for straightforward pro
 
 # Dependencies
 
-Functions that make system calls assume a standard local Linux environment but should work fine through Bash on Windows and *may* work on MacOS, depending on what tools are installed.  This package also assumes that you have setup your AWS configuration and credentials files (for example using the [aws-cli](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html) with: `aws configure`). Finally, these tools assume that your AWS instances are running AWS Linux 2.  YMMV if any of that isn't true.
+Functions that make system calls assume a standard local Linux environment but should work fine through Bash on Windows and *may* work on MacOS, depending on what tools are installed.  This package also assumes that you have setup your AWS configuration and credentials files (for example using the [aws-cli](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html) with: `aws configure`). Finally, these tools have only been tested with instances running AWS Linux 2.  YMMV if any of that isn't true.
 
 # Installation
 
