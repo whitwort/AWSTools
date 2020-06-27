@@ -8,9 +8,9 @@ The goal for this package is to provide a highly simplified workflow for straigh
 
 # Dependencies
 
-Many of the functions in this package make system calls and assume a standard Linux environment on the local machine but should work fine through a Bash on Windows distributions and *may* work on MacOS, depending on what tools are installed. 
+Many of the functions in this package make system calls and assume a standard Linux environment on the local machine but should work fine through most Bash on Windows distributions and *may* work on MacOS, depending on what tools are installed. 
 
-Finally, these tools have been developed and tested on EC2 instances running [Amazon Linux 2](https://aws.amazon.com/amazon-linux-2/), but should work with any standard Linux distribution.
+Finally, this toolset has been developed and tested on EC2 instances running [Amazon Linux 2](https://aws.amazon.com/amazon-linux-2/), but should work with any standard Linux distribution.
 
 # Installation & Setup
 
@@ -20,8 +20,8 @@ To install from GitHub first make sure you have the `devtools` package installed
 devtools::install_github('whitwort/AWSTools')
 ```
 
-To use the tools in this package you will need to configure your AWS user credentials files (or set environment variables).  As an example, you can do this using the [aws-cli](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html) `aws configure` command.  You will also need to make sure that the `ssh` key-pair you use to launch your EC2 instance is among the default keys that `ssh` will try when attempting to connect to the instance.
+To use this package you will need to configure your AWS user credential files (or set environment variables).  As an example, you can do this using the [aws-cli](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html) `aws configure` command.  You will also need to make sure that the `ssh` key-pair you use to launch your EC2 instance is among the default keys that `ssh` will try when attempting to connect to the instance.
 
 # License
 
-Copyright © 2020 Gregg Whitworth and licensed under [GPLv2](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html).
+Copyright © 2020 Gregg Whitworth and licensed under [GPLv3](https://www.gnu.org/licenses/gpl-3.0.en.html).
