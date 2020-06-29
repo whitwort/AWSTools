@@ -4,7 +4,7 @@ This package contains a set of R tools designed to ease and automate deploying d
 
 ## Limitations
 
-The goal for this package is to provide a highly simplified workflow for straightforward projects.  See the [paws](https://github.com/paws-r/paws) package if you need a much more complete AWS SDK for R.  These tools don't handle resource management or load balancing between instances so it's only suitable for projects where resource needs are easy to determine ahead of time; see a project like [Slurm](https://github.com/SchedMD/slurm) if you need a fully featured job scheduler to manage a compute cluster.
+The goal for this package is to provide a highly simplified workflow for straightforward projects.  See the [paws](https://github.com/paws-r/paws) package if you need a much more complete AWS SDK for R.  These tools don't handle resource management or load balancing between instances so they are only suitable for projects where resource needs are easy to determine ahead of time; see a project like [Slurm](https://github.com/SchedMD/slurm) if you need a full featured job scheduler to manage a compute cluster.
 
 ## Dependencies
 
