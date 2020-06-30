@@ -2,43 +2,58 @@
 % Please edit documentation in R/instances.R
 \name{launchInstance}
 \alias{launchInstance}
-\title{Launch and EC2 instance}
+\title{Launch an EC2 instance}
 \usage{
-launchInstance(imageID, keyName, securityGroups,
-  instanceType = "t2.micro", tags = NULL, blockDeviceMapping = NULL)
+launchInstance(imageId, keyName, securityGroupIds,
+  instanceType = "t2.micro", tags = NULL, blockDeviceMapping = NULL,
+  throttle = 1, username = "ec2-user", sshTimeout = 10)
 }
 \arguments{
-\item{imageID}{The image-id for the AMI to use to launch the instance.}
+\item{imageId}{The image-id for the AMI used to launch the instance.}
 
 \item{keyName}{The key-pair on your AWS account to use.  This pair should be
-associated with one of the default public keys that `ssh` will try to use
-when connecting to your instance.}
+associated with one of the default public keys on the current account that
+\code{ssh} will try to use when connecting to your instance.}
 
-\item{securityGroups}{The EC2 security group names to use.  This function
-launches your instance with the EC2-Classic scheme, not using VPC.}
+\item{securityGroupIds}{The EC2 security group(s) Id(s) to use.}
 
 \item{instanceType}{The type of instance to launch.}
 
 \item{tags}{Tags to apply to your instance and its resources. This should
-either be NULL or be a normal R list with named elements; names will be tag
+either be NULL or a normal R list with named elements; names will be tag
 Keys and elements their Values.}
 
 \item{blockDeviceMapping}{Additional block devices to create and mount. This
 should either be NULL or an object returned by the
 \code{\link{blockDeviceMapping}} function.}
+
+\item{throttle}{The amount of time to wait (in seconds) before repeating
+requests to the AWS API.  The account-wide limit is 10,000 r/s, so this
+default is extremely conservative.}
+
+\item{username}{The administrator username to use when logging in over ssh.
+Default is set for Amazon Linux AMIs.}
+
+\item{sshTimeout}{How many times to re-test connecting over ssh after
+recieving a timeout error.}
+}
+\value{
+An \code{instance} object that can be used with other functions in
+  this package that need to communicate with your launched instance.
 }
 \description{
 This wrapper function launches an EC2 instance from an AMI image ID, monitors
 instance initialization and startup, and handles mounting any additional
-block devices at the specified locations.  It returns an \code{instance} object
-which is used by other functions in this package to communicate with the
-instance.
+block devices at the specified locations.  It returns an \code{instance}
+object which is used by other functions in this package to communicate with
+the instance.
 }
 \details{
 This function is designed to be as simple as possible and does not support
 the vast majority of configuration options available when launching EC2
-instances.  If it doesn't meet your needs see the \code{paws} package for a full
-featured EC2 API.  You can pass the return value from the \code{paws.compute}
-\code{run_instances} function to the \code{\link{parseLaunchResponse}} to get an
-\code{instance} object to use with the other functions in this package.
+instances.  If it doesn't meet your needs see the \code{paws} package for a
+full featured EC2 SDK  You can use the \code{paws::ec2()$run_instances}
+function to launch your instance and then pass the `InstanceID` to
+\code{link{getInstanceDescription}} function to generate an \code{instance}
+object to use with the other functions in this package.
 }

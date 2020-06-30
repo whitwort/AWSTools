@@ -1,0 +1,22 @@
+---
+title: "Configuration"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Getting started}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+## Configuring AWS API Access
+
+This package uses the `paws` package to communicate with the AWS API.  For this to work, you must setup your AWS configuation and credentials on your local account.  For more information about how these credentials work see the [AWS documentation](https://docs.aws.amazon.com/general/latest/gr/aws-sec-cred-types.html#access-keys-and-secret-access-keys).
+
+The most straightforward way to do this is to is with the AWS-cli:
+
+* [Install the AWS-cli](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2.html)
+* Then run the `aws configure` command.  You will be prompted to enter a default region, Access Id and secret key.
+
+However, the are a number of other options described in the [PAWS Credentials documentation](https://github.com/paws-r/paws/blob/master/docs/credentials.md).  NOTE: using a Custom Service Config is **not** currently compatible with the `AWSTools` package.
+
+## Configuring ssh access to your instance
+

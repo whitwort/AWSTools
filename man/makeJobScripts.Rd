@@ -10,7 +10,7 @@ makeJobScripts(template, processes = 16,
 \arguments{
 \item{template}{Path to the script whisker template.}
 
-\item{processes}{How many processes queued jobs are sharing  This makes a
+\item{processes}{How many processes launched jobs are sharing  This makes a
 `threads` variable available during template rendering, which doles out an
 even number of threads to each job based on the total process count.}
 
