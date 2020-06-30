@@ -14,7 +14,7 @@ To use this package you will need to configure your AWS user credentials.  As an
 
 You will also need to make sure that the `ssh` key-pair you use to launch your EC2 instance is among the default keys that `ssh` will try when attempting to connect to the instance.
 
-For more detailed configuration instructions see the [configuration](https://github.com/whitwort/AWSTools/blob/master/vignettes/configuration.html) vignette.
+For more detailed configuration instructions see the [configuration](https://github.com/whitwort/AWSTools/blob/master/vignettes/configuration.Rmd) vignette.
 
 ## Limitations
 
