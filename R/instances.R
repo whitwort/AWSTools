@@ -1,11 +1,11 @@
 #' Launch an EC2 instance
-#'
+#' 
 #' This wrapper function launches an EC2 instance from an AMI, monitors instance
 #' initialization and startup, tests ssh connectivity, and handles formatting
 #' and mounting any additional block devices at the specified locations.  It
 #' returns an \code{instance} object which is used by other functions in this
 #' package.
-#'
+#' 
 #' This function is designed to be as simple as possible and does not support
 #' the vast majority of configuration options available when launching EC2
 #' instances.  If it doesn't meet your needs see the \code{paws} package for a
@@ -13,7 +13,7 @@
 #' function to launch your instance and then pass the `InstanceID` to
 #' \code{\link{getInstanceDescription}} function to generate an \code{instance}
 #' object to use with the other functions in this package.
-#'
+#' 
 #' @param imageId The image-id for the AMI used to launch the instance.
 #' @param keyName The key-pair on your AWS account to use.  This pair should be
 #'   associated with one of the default public keys on the current account that
@@ -356,7 +356,7 @@ blockDevices <- function( deviceName          = "/dev/xvdf"
 #' This function copies your individual job scripts and the launch script to an
 #' EC2 instance, flags them as executable, and then runs them.
 #'
-#' @param instance An instance objected created with
+#' @param instance An \code{instance} objected created with
 #'   \code{\link{launchInstance}} or \code{\link{getInstanceDescription}}.
 #' @param launchScript The name of the launch script file created by
 #'   \code{\link{makeLaunchScript}}.

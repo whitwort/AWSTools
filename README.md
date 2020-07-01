@@ -2,7 +2,7 @@
 
 This package contains a set of R tools designed to ease and automate deploying data analysis projects to AWS EC2 instances.
 
-## Installation & configuration
+## Getting started
 
 To install this package from GitHub first make sure you have the `devtools` package installed, then run:
 
@@ -10,11 +10,14 @@ To install this package from GitHub first make sure you have the `devtools` pack
 devtools::install_github('whitwort/AWSTools', build_vignettes = TRUE)
 ```
 
-To use this package you will need to configure your AWS user credentials.  As an example, you can do this using the [aws-cli](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html) `aws configure` command.  Please see the `paws` credentials documentation for more options (**note**: using a custom service config is not currently compatible with this package).
+Now take a look at the [Getting started tutorial](https://htmlpreview.github.io/?https://github.com/whitwort/AWSTools/blob/master/vignettes/getting-started.html), or open the vignette in R:
 
-You will also need to make sure that the `ssh` key-pair you use to launch your EC2 instance is among the default keys that `ssh` will try when attempting to connect to the instance.
+```r
+library(AWSTool)
+vignette('getting-started')
+```
 
-For more detailed configuration instructions see the [configuration](https://github.com/whitwort/AWSTools/blob/master/vignettes/configuration.Rmd) vignette.
+This tutorial will walk you through setting up access to the AWS API, ssh keys, and a sample workflow.
 
 ## Limitations
 
