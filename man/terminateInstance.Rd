@@ -11,7 +11,7 @@ terminateInstance(instance)
 \code{\link{launchInstance}} or \code{\link{getInstanceDescription}}.}
 }
 \description{
-Terminates the instance.  NOTE: any block devices setup with
+Terminates the instance.  \bold{WARNING}: any block devices setup with
 \code{deleteOnTermination = TRUE} will be deleted and ALL data LOST!
 }
 \details{

@@ -4,26 +4,28 @@
 \alias{makeJobScripts}
 \title{Generate a set of shell scripts to to launch individual jobs}
 \usage{
-makeJobScripts(template, processes = 16,
+makeJobScripts(template, jobScripts, processes = 1,
   scriptPath = "rendered-scripts", ...)
 }
 \arguments{
 \item{template}{Path to the script whisker template.}
 
+\item{jobScripts}{The file names for the job scripts to create through
+templating.  Should match the length of the longest variable argument.}
+
 \item{processes}{How many processes launched jobs are sharing  This makes a
 `threads` variable available during template rendering, which doles out an
 even number of threads to each job based on the total process count.}
 
-\item{scriptPath}{Path to the folder where rendered scripts should be saved.}
+\item{scriptPath}{Path to the local folder where rendered scripts should be saved.}
 
 \item{...}{A variable number of other arguments that are available as
 variable bindings.  Values not of length 1 should all be of the same length
-(the number of job scripts being created).  Must contain at least a `file`
-argument which lists the output file names for rendered scripts.}
+(the number of job scripts being created).}
 }
 \value{
-Returns a character vector containing the names of the job script
-  files created.
+A List with one named element (\code{jobs}) containing a vector of
+  job script file names.  Passed to \code{\link{makeLaunchScript}}
 }
 \description{
 This function uses a whisker (aka Mustache) template file to create one or

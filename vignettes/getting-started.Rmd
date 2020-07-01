@@ -20,3 +20,4 @@ However, the are a number of other options described in the [PAWS Credentials do
 
 ## Configuring ssh access to your instance
 
+describe two methods of termination: sudo shutdown now in launch script and remote monitor.

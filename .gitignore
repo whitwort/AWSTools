@@ -39,3 +39,4 @@ vignettes/*.pdf
 
 *.Rproj
 test.R
+rendered-scripts

@@ -43,7 +43,7 @@ requests to the AWS API.  The account-wide limit is 10,000 r/s, so this
 default is extremely conservative.}
 
 \item{username}{The administrator username to use when logging in over ssh.
-Default is set for Amazon Linux AMIs.}
+The user must have sudo privileges. Default is set for Amazon Linux AMIs.}
 
 \item{sshTimeout}{How many times to re-test connecting over ssh after
 recieving a timeout or connection refused error.  This function waits the

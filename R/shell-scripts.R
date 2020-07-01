@@ -7,37 +7,47 @@
 #' @param processes How many processes launched jobs are sharing  This makes a
 #'   `threads` variable available during template rendering, which doles out an
 #'   even number of threads to each job based on the total process count.
-#' @param scriptPath Path to the folder where rendered scripts should be saved.
+#' @param jobScripts The file names for the job scripts to create through
+#'   templating.  Should match the length of the longest variable argument.
+#' @param scriptPath Path to the local folder where rendered scripts should be saved.
 #' @param ... A variable number of other arguments that are available as
 #'   variable bindings.  Values not of length 1 should all be of the same length
-#'   (the number of job scripts being created).  Must contain at least a `file`
-#'   argument which lists the output file names for rendered scripts.
+#'   (the number of job scripts being created).
 #'
-#' @return Returns a character vector containing the names of the job script
-#'   files created.
+#' @return A List with one named element (\code{jobs}) containing a vector of
+#'   job script file names.  Passed to \code{\link{makeLaunchScript}}
 #'
 #' @export
 #' 
 makeJobScripts <- function( template
-                          , processes   = 16
+                          , jobScripts
+                          , processes   = 1
                           , scriptPath  = "rendered-scripts"
                           , ...
                           ) {
   
-  data$threads <- max(1, floor(processes / length(list(...)$file)))
+  if (!file.exists(scriptPath)) { dir.create(scriptPath) }
   
-  tmpl <- paste(readLines(template), sep = "\n")
+  scriptPath <- normalizePath(scriptPath)
+  threads    <- max(1, floor(processes / length(jobScripts)))
+  tmpl       <- paste(readLines(template), sep = "\n")
   
-  mapply( function(...) {
-            data <- list(...)
-            s    <- whisker::whisker.render(tmpl, data = data)
-            cat(s, file = file.path(scriptPath, data$file))
-          
-            data$file
-          }
-        , ...
-        )
+  renderScripts <- function(...) {
+    data <- list(...)
+    s    <- whisker::whisker.render(tmpl, data = data)
+    cat(s, file = file.path(scriptPath, data$file))
+  }
+  
+  do.call( mapply
+         , args = c( list( FUN     = renderScripts
+                         , file    = jobScripts
+                         , threads = threads
+                         )
+                   , list(...)
+                   )
+         )
 
+  list(jobs = jobScripts, localPath = scriptPath)
 }
 
 
@@ -48,38 +58,46 @@ makeJobScripts <- function( template
 #' and then shuts down the instance.  It also redirects both the stdout and
 #' stderr streams into log files.
 #'
-#' @param scripts File names of job scripts to add to launch.  Should be located
-#'   in `scriptPath`.
+#' @param scripts List with job script file names returned by
+#'   \code{\link{makeJobScripts}}.
 #' @param launchScript The name of the launch script file to be created.
-#' @param scriptPath Path to the folder where jobs scripts should be saved and
-#'   launch script will be created.
-#' @param logPath Directory where logs recording stdout and stderr streams for
-#'   each job should be saved.
+#' @param workingPath Path to the working directory on remote EC2 instances
+#'   where scripts should be copied and executed.
+#' @param logPath Folder where logs recording stdout and stderr streams for each
+#'   job should be saved.  This is created as a subdirectory of
+#'   \code{workingPath}.
 #' @param prelaunch Commands to run before the jobs are launched.
-#' @param postlaunch Commands to run after all jobs have finished.  By default
-#'   it shutsdown the instance when all of the jobs are done (assuming the user
-#'   running the launch script has sudoer priveledges).  Set to an empty string
-#'   to override this behavior.
+#' @param postlaunch Commands to run after all jobs have finished.  The default
+#'   shutsdown the instance after all of the jobs have finished running.  Set
+#'   to an empty string to override this behavior.
 #'
+#' @return Named list with job and launch script file names.  Passed to
+#'   \code{\link{launchJobs}}.
 #' @export
 #' 
 makeLaunchScript <- function( scripts
                             , launchScript = "launch.sh"
-                            , scriptPath   = "rendered-scripts"
-                            , logPath      = "logs"
+                            , workingPath  = "~"
+                            , logs         = "logs"
                             , prelaunch    = ""
                             , postlaunch   = 'wait; sudo shutdown now'
                             ) {
   
+  scripts$launch     <- launchScript
+  scripts$remotePath <- workingPath
+  scripts$logPath    <- file.path(workingPath, logs)
+  
   cat( "#!/bin/sh\n"
-     , paste("mkdir", logPath)
+     , paste("mkdir", scripts$logPath)
      , prelaunch
-     , paste( paste0("nohup ", file.path(scriptPath, scripts)," &> ", logPath, "/", scripts, ".log", " & ", '\n_pid=$!\necho "$_pid" >> jobs.pid')
+     , paste( paste0("nohup ", file.path(scripts$remotePath, scripts$jobs)," &> ", file.path(scripts$logPath, paste0(scripts$jobs, ".log")), ' &; _pid=$!; echo "$_pid" >> jobs.pid')
             , collapse = "\n"
             )
      , postlaunch
-     , file = file.path(scriptPath, launchScript)
+     , file = file.path(scripts$localPath, launchScript)
      , sep  = "\n"
      )
+  
+  scripts
   
 }

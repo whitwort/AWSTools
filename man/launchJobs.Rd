@@ -4,19 +4,24 @@
 \alias{launchJobs}
 \title{Start jobs by executing a launch script on an EC2 instance}
 \usage{
-launchJobs(instance, launchScript = "launch.sh",
-  scriptPath = "rendered-scripts")
+launchJobs(instance, scripts, otherFiles = NULL, permissions = "ug+x")
 }
 \arguments{
-\item{instance}{An instance objected created with
+\item{instance}{An \code{instance} objected created with
 \code{\link{launchInstance}} or \code{\link{getInstanceDescription}}.}
 
-\item{launchScript}{The name of the launch script file created by
-\code{\link{makeLaunchScript}}.}
+\item{scripts}{A list with launch and job script file names and a script path
+created by \code{\link{makeLaunchScript}}}
 
-\item{scriptPath}{Path to the folder where jobs scripts and the launch script
-were created with \code{\link{makeJobScripts}} and
-\code{\link{makeLaunchScript}}.}
+\item{otherFiles}{NULL or a vector containing full paths to other files to be
+copied to the instance before the launch script is run.}
+
+\item{permissions}{Specification for how the executable bit should be set
+after scripts are copied to the instance.  By default this marks the scrips
+as executable by both the owning user and group.}
+}
+\value{
+The \code{instance} object.
 }
 \description{
 This function copies your individual job scripts and the launch script to an

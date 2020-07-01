@@ -1,11 +1,11 @@
 #' Launch an EC2 instance
-#' 
+#'
 #' This wrapper function launches an EC2 instance from an AMI, monitors instance
 #' initialization and startup, tests ssh connectivity, and handles formatting
 #' and mounting any additional block devices at the specified locations.  It
 #' returns an \code{instance} object which is used by other functions in this
 #' package.
-#' 
+#'
 #' This function is designed to be as simple as possible and does not support
 #' the vast majority of configuration options available when launching EC2
 #' instances.  If it doesn't meet your needs see the \code{paws} package for a
@@ -13,7 +13,7 @@
 #' function to launch your instance and then pass the `InstanceID` to
 #' \code{\link{getInstanceDescription}} function to generate an \code{instance}
 #' object to use with the other functions in this package.
-#' 
+#'
 #' @param imageId The image-id for the AMI used to launch the instance.
 #' @param keyName The key-pair on your AWS account to use.  This pair should be
 #'   associated with one of the default public keys on the current account that
@@ -39,7 +39,7 @@
 #'   requests to the AWS API.  The account-wide limit is 10,000 r/s, so this
 #'   default is extremely conservative.
 #' @param username The administrator username to use when logging in over ssh.
-#'   Default is set for Amazon Linux AMIs.
+#'   The user must have sudo privileges. Default is set for Amazon Linux AMIs.
 #' @param sshTimeout How many times to re-test connecting over ssh after
 #'   recieving a timeout or connection refused error.  This function waits the
 #'   duraction of 'throttle' between attempts.
@@ -166,6 +166,7 @@ launchInstance <- function( imageId
   
   cat(crayon::green("\nSuccess!"), "Your instance is ready.\n")
   
+  instance$host <- host
   instance
 }
 
@@ -358,18 +359,67 @@ blockDevices <- function( deviceName          = "/dev/xvdf"
 #'
 #' @param instance An \code{instance} objected created with
 #'   \code{\link{launchInstance}} or \code{\link{getInstanceDescription}}.
-#' @param launchScript The name of the launch script file created by
-#'   \code{\link{makeLaunchScript}}.
-#' @param scriptPath Path to the folder where jobs scripts and the launch script
-#'   were created with \code{\link{makeJobScripts}} and
-#'   \code{\link{makeLaunchScript}}.
+#' @param scripts A list with launch and job script file names and a script path
+#'   created by \code{\link{makeLaunchScript}}
+#' @param otherFiles NULL or a vector containing full paths to other files to be
+#'   copied to the instance before the launch script is run.
+#' @param permissions Specification for how the executable bit should be set
+#'   after scripts are copied to the instance.  By default this marks the scrips
+#'   as executable by both the owning user and group.
 #'
+#' @return The \code{instance} object.
 #' @export
 #' 
 launchJobs <- function( instance
-                      , launchScript = "launch.sh"
-                      , scriptPath   = "rendered-scripts"
+                      , scripts
+                      , otherFiles   = NULL
+                      , permissions  = "ug+x"
                       ) {
+
+  localPaths  <- file.path(scripts$path, c(scripts$jobs, scripts$launch))
+  remotePaths <- file.path(scripts$remotePath, c(scripts$jobs, scripts$launch))
+
+  cat("Opening ssh connection to instance...\n  ")
+  session <- ssh::connect(instance$host)
+  cat(crayon::green("  done.\n"))
+  
+  cat("Copying scripts to the instance...\n")
+  ssh::scp_upload( session
+                 , files = localPaths
+                 , to    = scripts$remotePath
+                 )
+  cat(crayon::green(" done.\n"))
+  
+  if (!is.null(otherFiles)) {
+    cat("Copying other files to the instance...\n")
+    ssh::scp_upload( session
+                   , files = otherFiles
+                   , to    = scripts$remotePath
+                   )
+    cat(crayon::green(" done.\n"))  
+  }
+  
+  cat("Making scripts executable...\n")
+  ssh::ssh_exec_wait( session
+                    , paste( "sudo chmod"
+                           , permissions
+                           , paste(remotePaths, collapse = " ")
+                           ) 
+                    )
+  cat(crayon::green("done.\n"))
+  
+  cat("Running launch script...")
+  ssh::ssh_exec_wait(session, paste("cd", scripts$remotePath))
+  ssh::ssh_exec_wait( session
+                    , paste0( "nohup ./"
+                            , scripts$launch
+                            , ' &;_pid=$!;echo "$_pid" >> launchers.pid\n'
+                            )
+                    )
+  cat(crayon::green("done.\n"))
+    
+  cat("You can check the status of your jobs using 'getStatus'.")
+  instance
   
 }
 
@@ -402,7 +452,7 @@ getStatus <- function(instance) {
 
 #' Terminate an instance
 #'
-#' Terminates the instance.  NOTE: any block devices setup with
+#' Terminates the instance.  \bold{WARNING}: any block devices setup with
 #' \code{deleteOnTermination = TRUE} will be deleted and ALL data LOST!
 #'
 #' This package doesn't offer an API for stopping and resuming instances, only
