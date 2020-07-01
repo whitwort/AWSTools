@@ -139,9 +139,32 @@ launchInstance <- function( imageId
   }
   
   cat(crayon::green("  done.\n"))
-  cat(crayon::green("\nSuccess!"), "Your instance is ready.\n")
   
   # setup block device mounts
+  cat("Connecting to ssh to format and mount block devices...\n  ")
+  session <- ssh::ssh_connect(host)
+  lapply( blockDevices
+        , function(l) {
+            mount <- l$mount
+            
+            cat("  Formatting", crayon::cyan(mount$deviceName), "as", crayon::cyan(mount$fsType), "...")
+            ssh::ssh_exec_wait(session, paste("sudo mkfs -t", mount$fsType, mount$deviceName), std_out = function(...) {})
+            cat(crayon::green("  done.\n"))
+            
+            cat("  Mounting", crayon::cyan(mount$deviceName), "at", crayon::cyan(mount$mountDir), "...")
+            ssh::ssh_exec_wait(session, paste("sudo mkdir", mount$mountDir))
+            ssh::ssh_exec_wait(session, paste("sudo mount", mount$deviceName, mount$mountDir))
+            cat(crayon::green(" done.\n"))
+            
+            cat("  Setting ownership of", crayon::cyan(mount$mountDir), "to", crayon::cyan(mount$owner), "...")
+            ssh::ssh_exec_wait(session, paste("sudo chown", mount$owner, mount$mountDir))
+            cat(crayon::green(" done.\n"))
+            
+          }
+        )
+  cat(crayon::green("done.\n"))
+  
+  cat(crayon::green("\nSuccess!"), "Your instance is ready.\n")
   
   instance
 }
