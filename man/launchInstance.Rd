@@ -5,8 +5,9 @@
 \title{Launch an EC2 instance}
 \usage{
 launchInstance(imageId, keyName, securityGroupIds,
-  instanceType = "t2.micro", tags = NULL, blockDeviceMapping = NULL,
-  throttle = 1, username = "ec2-user", sshTimeout = 10)
+  instanceType = "t2.micro", shutdownBehavior = "terminate",
+  tags = NULL, blockDevices = NULL, throttle = 1,
+  username = "ec2-user", sshTimeout = 10)
 }
 \arguments{
 \item{imageId}{The image-id for the AMI used to launch the instance.}
@@ -15,17 +16,27 @@ launchInstance(imageId, keyName, securityGroupIds,
 associated with one of the default public keys on the current account that
 \code{ssh} will try to use when connecting to your instance.}
 
-\item{securityGroupIds}{The EC2 security group(s) Id(s) to use.}
+\item{securityGroupIds}{The EC2 security group id(s) to use.}
 
 \item{instanceType}{The type of instance to launch.}
+
+\item{shutdownBehavior}{"stop" or "terminate" indicating what the instance
+should do when a system command initiates a shutdown.  \bold{NOTE:} the
+default here (terminate) is different than the normal API default (stop).
+Stopping an instance pauses it while preserving all attached volumes; it
+can be resumed.  Terminating an instance destroys it and releases any
+attached ephemeral storage; it cannot be resumed.  The design of this
+package assumes you are using attached block devices as "scratch" storage
+during data analysis runs, thus the default is to terminate instances on
+shutdown.}
 
 \item{tags}{Tags to apply to your instance and its resources. This should
 either be NULL or a normal R list with named elements; names will be tag
 Keys and elements their Values.}
 
-\item{blockDeviceMapping}{Additional block devices to create and mount. This
-should either be NULL or an object returned by the
-\code{\link{blockDeviceMapping}} function.}
+\item{blockDevices}{Additional block devices to create and mount. This should
+either be NULL or an object returned by the \code{\link{blockDevices}}
+function.}
 
 \item{throttle}{The amount of time to wait (in seconds) before repeating
 requests to the AWS API.  The account-wide limit is 10,000 r/s, so this
@@ -43,10 +54,11 @@ An \code{instance} object that can be used with other functions in
   this package.
 }
 \description{
-This wrapper function launches an EC2 instance from an AMI image ID, monitors
-instance initialization and startup, and handles mounting any additional
-block devices at the specified locations.  It returns an \code{instance}
-object which is used by other functions in this package
+This wrapper function launches an EC2 instance from an AMI, monitors instance
+initialization and startup, tests ssh connectivity, and handles formatting
+and mounting any additional block devices at the specified locations.  It
+returns an \code{instance} object which is used by other functions in this
+package.
 }
 \details{
 This function is designed to be as simple as possible and does not support
@@ -54,6 +66,6 @@ the vast majority of configuration options available when launching EC2
 instances.  If it doesn't meet your needs see the \code{paws} package for a
 full featured EC2 SDK  You can use the \code{paws::ec2()$run_instances}
 function to launch your instance and then pass the `InstanceID` to
-\code{link{getInstanceDescription}} function to generate an \code{instance}
+\code{\link{getInstanceDescription}} function to generate an \code{instance}
 object to use with the other functions in this package.
 }

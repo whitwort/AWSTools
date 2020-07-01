@@ -2,7 +2,7 @@
 % Please edit documentation in R/instances.R
 \name{terminateInstance}
 \alias{terminateInstance}
-\title{Terminate instance}
+\title{Terminate an instance}
 \usage{
 terminateInstance(instance)
 }

@@ -1,30 +1,40 @@
 #' Launch an EC2 instance
 #'
-#' This wrapper function launches an EC2 instance from an AMI image ID, monitors
-#' instance initialization and startup, and handles mounting any additional
-#' block devices at the specified locations.  It returns an \code{instance}
-#' object which is used by other functions in this package
+#' This wrapper function launches an EC2 instance from an AMI, monitors instance
+#' initialization and startup, tests ssh connectivity, and handles formatting
+#' and mounting any additional block devices at the specified locations.  It
+#' returns an \code{instance} object which is used by other functions in this
+#' package.
 #'
 #' This function is designed to be as simple as possible and does not support
 #' the vast majority of configuration options available when launching EC2
 #' instances.  If it doesn't meet your needs see the \code{paws} package for a
 #' full featured EC2 SDK  You can use the \code{paws::ec2()$run_instances}
 #' function to launch your instance and then pass the `InstanceID` to
-#' \code{link{getInstanceDescription}} function to generate an \code{instance}
+#' \code{\link{getInstanceDescription}} function to generate an \code{instance}
 #' object to use with the other functions in this package.
 #'
 #' @param imageId The image-id for the AMI used to launch the instance.
 #' @param keyName The key-pair on your AWS account to use.  This pair should be
 #'   associated with one of the default public keys on the current account that
 #'   \code{ssh} will try to use when connecting to your instance.
-#' @param securityGroupIds The EC2 security group(s) Id(s) to use.
+#' @param securityGroupIds The EC2 security group id(s) to use.
 #' @param instanceType The type of instance to launch.
+#' @param shutdownBehavior "stop" or "terminate" indicating what the instance
+#'   should do when a system command initiates a shutdown.  \bold{NOTE:} the
+#'   default here (terminate) is different than the normal API default (stop).
+#'   Stopping an instance pauses it while preserving all attached volumes; it
+#'   can be resumed.  Terminating an instance destroys it and releases any
+#'   attached ephemeral storage; it cannot be resumed.  The design of this
+#'   package assumes you are using attached block devices as "scratch" storage
+#'   during data analysis runs, thus the default is to terminate instances on
+#'   shutdown.
 #' @param tags Tags to apply to your instance and its resources. This should
 #'   either be NULL or a normal R list with named elements; names will be tag
 #'   Keys and elements their Values.
-#' @param blockDeviceMapping Additional block devices to create and mount. This
-#'   should either be NULL or an object returned by the
-#'   \code{\link{blockDeviceMapping}} function.
+#' @param blockDevices Additional block devices to create and mount. This should
+#'   either be NULL or an object returned by the \code{\link{blockDevices}}
+#'   function.
 #' @param throttle The amount of time to wait (in seconds) before repeating
 #'   requests to the AWS API.  The account-wide limit is 10,000 r/s, so this
 #'   default is extremely conservative.
@@ -42,14 +52,15 @@ launchInstance <- function( imageId
                           , keyName
                           , securityGroupIds
                           , instanceType       = "t2.micro"
+                          , shutdownBehavior   = "terminate"
                           , tags               = NULL
-                          , blockDeviceMapping = NULL
+                          , blockDevices       = NULL
                           , throttle           = 1
                           , username           = "ec2-user"
                           , sshTimeout         = 10
                           ) {
   
-  # reformat tag specification
+  # format TagSpecifications from tags
   tagSpecifications <- if (!is.null(tags)) {
     formattedTags <- lapply( names(tags)
                            , function(key) {
@@ -63,15 +74,20 @@ launchInstance <- function( imageId
     )
   } else { NULL }
   
-  # get the paws::EC2 service
-  ec2  <- paws::ec2()
+  # format BlockDeviceMappings from blockDevices
+  blockDeviceMappings <- if (!is.null(blockDevices)) {
+    lapply(blockDevices, function(l) { l$mapping })
+  } else { NULL }
   
-  # check that AWS API access is configured
-  cat("Checking AWS API access to EC2...")
+  # create a paws::EC2 service
+  ec2 <- paws::ec2()
+  
+  # check that AWS API access to EC2 is configured
+  cat("Checking AWS API access for EC2...")
   tryCatch( ec2$describe_instances
           , error = function(e) {
               cat( crayon::red(" failed.\n")
-                 , "There was an error trying to use the `paws` package to connect to the AWS API.  This is probably because you have not setup your AWS configuration and credentials.  Please see the 'configuration' vignette for instructions. Error message:"
+                 , "There was an error trying to use the `paws` package to connect to the AWS API.  This is probably because you have not setup your AWS configuration and credentials.  Please see the 'getting-started' vignette for instructions. Error message:"
                  )
               stop(e)
             }
@@ -79,26 +95,28 @@ launchInstance <- function( imageId
   cat(crayon::green(" done.\n"))
   
   # use paws to launch the instance; this blocks until the instance is created.
-  cat("Launching EC2 instance...")
-  resp <- ec2$run_instances( ImageId = imageId
-                           , KeyName = keyName
-                           , SecurityGroupIds = as.list(securityGroupIds)
-                           , InstanceType = instanceType
-                           , TagSpecifications = tagSpecifications
-                           , MaxCount = 1
-                           , MinCount = 1
+  cat("Launching the EC2 instance...")
+  resp <- ec2$run_instances( ImageId                           = imageId
+                           , KeyName                           = keyName
+                           , SecurityGroupIds                  = as.list(securityGroupIds)
+                           , InstanceType                      = instanceType
+                           , InstanceInitiatedShutdownBehavior = shutdownBehavior
+                           , BlockDeviceMappings               = blockDeviceMappings
+                           , TagSpecifications                 = tagSpecifications
+                           , MaxCount                          = 1
+                           , MinCount                          = 1
                            )
   cat(crayon::green(" done.\n"))
   
   # get the instanceId from the response data
   instanceId <- resp$Instances[[1]]$InstanceId
-  cat("The instance id is: ", crayon::cyan(instanceId), "\n")
+  cat("The instance id is:", crayon::cyan(instanceId), "\n")
   
   instance <- getInstanceDescription(instanceId, throttle)
   
   ## NB: the AWS API describe_instance_status function reports on whether or not
-  ## the System and Interface are reachable.  However these checks are slow to
-  ## update and SSH appears to be up and running long before these checks
+  ## the System and Interface are reachable.  However these checks are very slow
+  ## to update and SSH appears to be up and running long before these checks
   ## *actually* pass.  Therefore the currently implementation is to just try
   ## repeated connections with ssh after the state turns to "running" rather
   ## than wait for those tests to pass.  This may be a bad idea.
@@ -106,12 +124,12 @@ launchInstance <- function( imageId
   # check ssh access
   host <- paste0(username, "@", instance$ip)
   Sys.sleep(5)
-  cat("Checking ssh connection (", crayon::cyan(host), ")...\n")
+  cat("Waiting for an ssh connection to:", crayon::cyan(host), "...\n  ")
   sshTimeouts <- 0
   while (!trySSH(host)) {
     if (sshTimeouts == sshTimeout) {
       cat( crayon::red(" failed.\n\n")
-         , "Your instance is running but an error occured when trying to connect to it over ssh; be sure to terminate it using 'terminateInstance', the web console or AWS CLI!  It may be that we just need to wait longer for your server to get up and running; try increasing the value of 'sshTimeout'.  Also check to make sure that 'sshd' is installed and configured on your AMI and that the firewall is setup corretly through your security group.\n\nYou might have success debugging the problem by running ssh in verbose mode.  Try running this terminal command:\nssh -v ", host
+         , "Your instance is running but an error occured when trying to connect to it over ssh; be sure to terminate it using 'terminateInstance', the web console or AWS CLI!  It may be that we just need to wait longer for it to get up and running; try increasing the value of 'sshTimeout'.  Also check to make sure that 'sshd' is installed and configured on your AMI and that the firewall is setup corretly through your security group.\n\nYou might try debugging the problem by running ssh in verbose mode with this terminal command:\n", crayon::cyan("ssh -v", host)
          )
       return(instance)
     }
@@ -120,8 +138,10 @@ launchInstance <- function( imageId
     sshTimeouts <- sshTimeouts + 1
   }
   
-  cat(crayon::green("done.\n"))
-  cat(crayon::green("\nSuccess!"), " Your instance is now ready to use.\n")
+  cat(crayon::green("  done.\n"))
+  cat(crayon::green("\nSuccess!"), "Your instance is ready.\n")
+  
+  # setup block device mounts
   
   instance
 }
@@ -146,11 +166,11 @@ trySSH <- function(host) {
 
 #' Gather descriptive information about a running instance
 #'
-#' This function checks to make sure a launched instance is Running and both the
-#' System and Instance reachability tests have passed, then returns an instance
-#' description used by the other functions in this package.  This function is
-#' useful if you want to launch instances yourself using the Web console, AWS
-#' CLI, or paws SDK instead of using \code{\link{launchInstance}}.
+#' This function checks to make sure a launched instance is 'running' then
+#' returns an instance description used by the other functions in this package.
+#' You won't normally need to call this function directly, but it is useful if
+#' you want to launch instances yourself using the Web console, AWS CLI, or paws
+#' SDK instead of using \code{\link{launchInstance}}.
 #'
 #' Note: this function only tests that the instance is running, it does not
 #' verify that an ssh connection is corretly setup and available.  You may have
@@ -169,15 +189,15 @@ trySSH <- function(host) {
 getInstanceDescription <- function(instanceId, throttle = 1) {
 
   # wait for the instance State to be running
-  cat("Waiting for the instance to be Running...")
+  cat("Waiting for the instance state to be 'running'...")
   while(!isRunning(instanceId)) {
     Sys.sleep(throttle)
   }
   cat(crayon::green(" done.\n"))
 
-  # The current setup assumes all needed description fields are populated by the
-  # time the state turns to "running".  So far so good.
-  cat("Getting instance description...")
+  # Note: this implementation assumes all needed description fields are
+  # populated by the time the state turns to "running".  So far so good.
+  cat("Waiting for an instance description...")
   resp <- getDescription(instanceId)
   cat(crayon::green(" done.\n"))
   
@@ -214,15 +234,22 @@ getDescription <- function(instanceId) {
 }
 
 connectionError <- function(instanceId) {
-  cat("An error occured when trying to connect to your EC2 instance or check its status.  Please check the instance state using the Web console or AWS-cli as it may still be running; the instance InstanceId is ", crayon::cyan$bold(instanceId), ". Error message:")
+  cat("An error occured when trying to connect to your EC2 instance or check its status.  Please check the instance state using the Web console or AWS-cli as it may still be running; the InstanceId is: ", crayon::cyan$bold(instanceId), ".\n\n Error message:")
 }
 
-#' Describe one or more block devices (EBS) to create and mount on an EC2 instance.
+#' Describe one or more block devices (EBS) to create, format, and mount on an
+#' EC2 instance
 #'
 #' The arguments to this function are vectorized, so you can use it to describe
-#' one or more block devices to create and mount.  Pay particular care to the
-#' \code{deleteOnTermination} argument!  If set incorrectly you may unexpectedly
-#' lose data or incur EBS charges.
+#' one or more block devices to create and mount.  Pay particularly close
+#' attention to the \code{deleteOnTermination} argument!  If set incorrectly you
+#' may unexpectedly lose data or incur EBS charges.
+#'
+#' Note the design of this package assumes you are using attached block devices
+#' for "scratch" drives during a data analysis run that are freshly provisioned
+#' at the start and discarded at the end.  If this doesn't fit your use-case
+#' you'll probably want to manually launch and configure your instances and
+#' attached volumns.
 #'
 #' @param deviceName A character vector giving the names of one or more block
 #'   devices to create on instance launch.  The length of \code{mountDir} must
@@ -235,41 +262,73 @@ connectionError <- function(instanceId) {
 #'   instance is stopped instead of terminated.  \bold{WARNING #2}:  If you set
 #'   this to FALSE than you will continue to incur EBS charges for data on this
 #'   volume even after the instance has been terminated.
+#' @param volumeType Type of EBS volume: "standard"|"io1"|"gp2"|"sc1"|"st1".
+#' @param encrypted TRUE or FALSE whether or not the drive should be encrypted.
+#' @param fsType The type of filesystem to use when formatting block devices.
+#'   This can be any valid argument to 'mkfs -t' on your AMI.
 #' @param mountDir The path on the instance file system where the device(s)
-#'   should be mounted after the instance starts up.  The length of this vector
-#'   must math the length of \code{deviceName}.
+#'   should be mounted after being formatted.  The length of this vector must
+#'   math the length of \code{deviceName}.
+#' @param owner The user and group owners that should be set for the block
+#'   device mount location. This string should be in the standard Linux format
+#'   of "user:group".
 #'
 #' @return A list of block device mappings that can be used with
 #'   \code{\link{launchInstance}}.
 #' @export
 #' 
-blockDeviceMapping <- function( deviceName          = "/dev/sdb"
-                              , volumeSize          = 8
-                              , deleteOnTermination = TRUE
-                              , mountDir            = "/data"
-                              ) {
+blockDevices <- function( deviceName          = "/dev/xvdf"
+                        , volumeSize          = 8
+                        , deleteOnTermination = TRUE
+                        , volumeType          = "gp2"
+                        , encrypted           = FALSE
+                        , fsType              = "ext4"
+                        , mountDir            = "/data"
+                        , owner               = "ec2-user:ec2-user"                
+                        ) {
   
   if (length(deviceName) != length(mountDir)) { 
     stop("Length of deviceName and mountDir vectors do not match.") 
   }
   
-  mapply( function(deviceName, volumeSize, deleteOnTermination, mountDir) { 
-            list( deviceName          = deviceName
-                , volumeSize          = volumeSize
-                , deleteOnTermination = deleteOnTermination
-                , mountDir            = mountDir
-                )
+  mapply( function( deviceName
+                  , volumeSize
+                  , deleteOnTermination
+                  , volumeType
+                  , encrypted
+                  , fsType
+                  , mountDir
+                  , owner
+                  ) { 
+          list( mapping = list( DeviceName = deviceName
+                              , Ebs = list( DeleteOnTermination = deleteOnTermination
+                                          , VolumeSize          = volumeSize
+                                          , VolumeType          = volumeType
+                                          , Encrypted           = encrypted
+                                          )
+                              )
+              , mount   = list( deviceName = deviceName
+                              , fsType     = fsType
+                              , mountDir   = mountDir
+                              , owner      = owner
+                              )
+              )
           }
         , deviceName
         , volumeSize
         , deleteOnTermination
+        , volumeType
+        , encrypted
+        , fsType
         , mountDir
+        , owner
+        , SIMPLIFY   = FALSE
+        , USE.NAMES  = FALSE
         )
   
 }
 
-
-#' Start jobs by executing a launch script on an EC2 instance.
+#' Start jobs by executing a launch script on an EC2 instance
 #'
 #' This function copies your individual job scripts and the launch script to an
 #' EC2 instance, flags them as executable, and then runs them.
@@ -291,7 +350,7 @@ launchJobs <- function( instance
   
 }
 
-#' Check whether or not an EC2 instance is still running
+#' Check whether or not an EC2 instance is running.
 #'
 #' @param instance An instance objected created with
 #'   \code{\link{launchInstance}} or \code{\link{getInstanceDescription}}.
@@ -301,7 +360,7 @@ launchJobs <- function( instance
 #' @export
 #' 
 checkAlive <- function(instance) {
-  tryCatch( isRunning(instance)
+  tryCatch( isRunning(instance$id)
           , error = function(e) { FALSE }
           )
 }
@@ -318,7 +377,7 @@ getStatus <- function(instance) {
   
 }
 
-#' Terminate instance
+#' Terminate an instance
 #'
 #' Terminates the instance.  NOTE: any block devices setup with
 #' \code{deleteOnTermination = TRUE} will be deleted and ALL data LOST!

@@ -18,11 +18,11 @@ default is extremely conservative.}
 An \code{instance} object used by the other functions in this package
 }
 \description{
-This function checks to make sure a launched instance is Running and both the
-System and Instance reachability tests have passed, then returns an instance
-description used by the other functions in this package.  This function is
-useful if you want to launch instances yourself using the Web console, AWS
-CLI, or paws SDK instead of using \code{\link{launchInstance}}.
+This function checks to make sure a launched instance is 'running' then
+returns an instance description used by the other functions in this package.
+You won't normally need to call this function directly, but it is useful if
+you want to launch instances yourself using the Web console, AWS CLI, or paws
+SDK instead of using \code{\link{launchInstance}}.
 }
 \details{
 Note: this function only tests that the instance is running, it does not

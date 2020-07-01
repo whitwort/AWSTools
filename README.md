@@ -4,7 +4,7 @@ This package contains a set of R tools designed to ease and automate deploying d
 
 ## Installation & configuration
 
-To install this package from GitHub first make sure you have `devtools` installed, then run:
+To install this package from GitHub first make sure you have the `devtools` package installed, then run:
 
 ```r
 devtools::install_github('whitwort/AWSTools', build_vignettes = TRUE)
@@ -18,11 +18,11 @@ For more detailed configuration instructions see the [configuration](https://git
 
 ## Limitations
 
-The goal for this package is to provide a highly simplified workflow for straightforward projects.  See the [paws](https://github.com/paws-r/paws) package if you need a much more thorough AWS SDK for R.  
+The goal for this package is to provide a highly simplified workflow for straightforward data analysis projects.  See the [paws](https://github.com/paws-r/paws) package if you need a much more thorough AWS SDK for R.  
 
-These tools don't handle resource management or load balancing between instances so they are only suitable for projects where resource needs are easy to determine ahead of time. See a project like [Slurm](https://github.com/SchedMD/slurm) if you need a full featured job scheduler to manage a compute cluster.
+These tools don't handle resource management or load balancing between instances so they are only suitable for projects where resource needs are easy to predict ahead of time. See a project like [Slurm](https://github.com/SchedMD/slurm) if you need a full featured job scheduler to manage a compute cluster.
 
-Finally, this toolset has been developed and tested on EC2 instances running [Amazon Linux 2](https://aws.amazon.com/amazon-linux-2/), but it *should* work with any standard Linux distribution.  It is not designed to work with Windows instances.
+Finally, this toolset has been developed and tested on EC2 instances running [Amazon Linux 2](https://aws.amazon.com/amazon-linux-2/), but it *should* work with any standard Linux distribution.
 
 ## License
 

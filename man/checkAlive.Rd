@@ -2,7 +2,7 @@
 % Please edit documentation in R/instances.R
 \name{checkAlive}
 \alias{checkAlive}
-\title{Check whether or not an EC2 instance is still running}
+\title{Check whether or not an EC2 instance is running.}
 \usage{
 checkAlive(instance)
 }
@@ -15,5 +15,5 @@ TRUE or FALSE.  All conditions except the "running" state return
   FALSE (including AWS API and connection errors).
 }
 \description{
-Check whether or not an EC2 instance is still running
+Check whether or not an EC2 instance is running.
 }

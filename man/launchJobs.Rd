@@ -2,7 +2,7 @@
 % Please edit documentation in R/instances.R
 \name{launchJobs}
 \alias{launchJobs}
-\title{Start jobs by executing a launch script on an EC2 instance.}
+\title{Start jobs by executing a launch script on an EC2 instance}
 \usage{
 launchJobs(instance, launchScript = "launch.sh",
   scriptPath = "rendered-scripts")
