@@ -24,3 +24,9 @@ description used by the other functions in this package.  This function is
 useful if you want to launch instances yourself using the Web console, AWS
 CLI, or paws SDK instead of using \code{\link{launchInstance}}.
 }
+\details{
+Note: this function only tests that the instance is running, it does not
+verify that an ssh connection is corretly setup and available.  You may have
+to wait awhile after starting your instance with external tools before you
+can use the other functions in this package.
+}

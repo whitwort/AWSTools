@@ -3,8 +3,7 @@
 #' This wrapper function launches an EC2 instance from an AMI image ID, monitors
 #' instance initialization and startup, and handles mounting any additional
 #' block devices at the specified locations.  It returns an \code{instance}
-#' object which is used by other functions in this package to communicate with
-#' the instance.
+#' object which is used by other functions in this package
 #'
 #' This function is designed to be as simple as possible and does not support
 #' the vast majority of configuration options available when launching EC2
@@ -32,10 +31,11 @@
 #' @param username The administrator username to use when logging in over ssh.
 #'   Default is set for Amazon Linux AMIs.
 #' @param sshTimeout How many times to re-test connecting over ssh after
-#'   recieving a timeout error.
+#'   recieving a timeout or connection refused error.  This function waits the
+#'   duraction of 'throttle' between attempts.
 #'
 #' @return An \code{instance} object that can be used with other functions in
-#'   this package that need to communicate with your launched instance.
+#'   this package.
 #' @export
 #' 
 launchInstance <- function( imageId
@@ -49,11 +49,19 @@ launchInstance <- function( imageId
                           , sshTimeout         = 10
                           ) {
   
-  formattedTags <- lapply( names(tags)
-                          , function(key) {
-                              list(Key = key, Value = tags[[key]])
-                            }
-                          )
+  # reformat tag specification
+  tagSpecifications <- if (!is.null(tags)) {
+    formattedTags <- lapply( names(tags)
+                           , function(key) {
+                               list(Key = key, Value = tags[[key]])
+                             }
+                           )
+    list(
+      list( ResourceType = "instance"
+          , Tags         = formattedTags
+          )
+    )
+  } else { NULL }
   
   # get the paws::EC2 service
   ec2  <- paws::ec2()
@@ -76,12 +84,7 @@ launchInstance <- function( imageId
                            , KeyName = keyName
                            , SecurityGroupIds = as.list(securityGroupIds)
                            , InstanceType = instanceType
-                           , TagSpecifications = list(
-                               list(
-                                 ResourceType = "instance",
-                                 Tags         = formattedTags
-                               )
-                             )
+                           , TagSpecifications = tagSpecifications
                            , MaxCount = 1
                            , MinCount = 1
                            )
@@ -96,9 +99,9 @@ launchInstance <- function( imageId
   ## NB: the AWS API describe_instance_status function reports on whether or not
   ## the System and Interface are reachable.  However these checks are slow to
   ## update and SSH appears to be up and running long before these checks
-  ## *actually* pass.  Therefore the currently implementation is to just try to
-  ## connect with ssh after the state turns to "running" rather than wait for
-  ## those tests to pass.  This may be a bad idea.
+  ## *actually* pass.  Therefore the currently implementation is to just try
+  ## repeated connections with ssh after the state turns to "running" rather
+  ## than wait for those tests to pass.  This may be a bad idea.
   
   # check ssh access
   host <- paste0(username, "@", instance$ip)
@@ -108,7 +111,7 @@ launchInstance <- function( imageId
   while (!trySSH(host)) {
     if (sshTimeouts == sshTimeout) {
       cat( crayon::red(" failed.\n\n")
-         , "Your instance is running but an error occured when trying to connect to your instance over ssh; be sure to terminate it using 'terminateInstance', the web console or AWS CLI!  It may be that we just have to be more patient for your server to get up and running (try increasing the value of sshTimeout).  Also check to make sure that sshd is installed and configured on your AMI and that the firewall is setup corretly through your security group.  Try debugging the problem by running ssh in verbose mode:\n\n$ssh -v ", host
+         , "Your instance is running but an error occured when trying to connect to it over ssh; be sure to terminate it using 'terminateInstance', the web console or AWS CLI!  It may be that we just need to wait longer for your server to get up and running; try increasing the value of 'sshTimeout'.  Also check to make sure that 'sshd' is installed and configured on your AMI and that the firewall is setup corretly through your security group.\n\nYou might have success debugging the problem by running ssh in verbose mode.  Try running this terminal command:\nssh -v ", host
          )
       return(instance)
     }
@@ -118,7 +121,7 @@ launchInstance <- function( imageId
   }
   
   cat(crayon::green("done.\n"))
-  cat(crayon::green("\nSuccess!"), " Your instance is now ready to use.")
+  cat(crayon::green("\nSuccess!"), " Your instance is now ready to use.\n")
   
   instance
 }
@@ -149,6 +152,11 @@ trySSH <- function(host) {
 #' useful if you want to launch instances yourself using the Web console, AWS
 #' CLI, or paws SDK instead of using \code{\link{launchInstance}}.
 #'
+#' Note: this function only tests that the instance is running, it does not
+#' verify that an ssh connection is corretly setup and available.  You may have
+#' to wait awhile after starting your instance with external tools before you
+#' can use the other functions in this package.
+#'
 #' @param instanceId The InstanceID returned or displayed through whatever
 #'   mechanism used to launch the EC2 instance
 #' @param throttle The amount of time to wait (in seconds) before repeating
@@ -157,7 +165,7 @@ trySSH <- function(host) {
 #'
 #' @return An \code{instance} object used by the other functions in this package
 #' @export
-#'
+#' 
 getInstanceDescription <- function(instanceId, throttle = 1) {
 
   # wait for the instance State to be running
@@ -310,14 +318,24 @@ getStatus <- function(instance) {
   
 }
 
-#' Title
+#' Terminate instance
 #'
+#' Terminates the instance.  NOTE: any block devices setup with
+#' \code{deleteOnTermination = TRUE} will be deleted and ALL data LOST!
+#'
+#' This package doesn't offer an API for stopping and resuming instances, only
+#' terminating them.  If you want to manually stop and start instances, you can
+#' get a new \code{instance} object to use with the other functions in this
+#' package by passing the instanceId to \code{\link{getInstanceDescription}}
+#' function.
+#' 
 #' @param instance An instance objected created with
 #'   \code{\link{launchInstance}} or \code{\link{getInstanceDescription}}.
 #'
-#' @return
 #' @export
-#'
+#' 
 terminateInstance <- function(instance) {
-  
+  ec2  <- paws::ec2()
+  resp <- ec2$terminate_instances(InstanceIds = instance$id)
+  cat("Instance state: ", crayon::cyan(resp$TerminatingInstances[[1]]$CurrentState$Name), "\n")
 }

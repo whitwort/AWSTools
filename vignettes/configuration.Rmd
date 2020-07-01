@@ -7,7 +7,7 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
-## Configuring AWS API Access
+## Configuring AWS API access
 
 This package uses the `paws` package to communicate with the AWS API.  For this to work, you must setup your AWS configuation and credentials on your local account.  For more information about how these credentials work see the [AWS documentation](https://docs.aws.amazon.com/general/latest/gr/aws-sec-cred-types.html#access-keys-and-secret-access-keys).
 

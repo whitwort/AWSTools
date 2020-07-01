@@ -2,7 +2,7 @@
 % Please edit documentation in R/instances.R
 \name{terminateInstance}
 \alias{terminateInstance}
-\title{Title}
+\title{Terminate instance}
 \usage{
 terminateInstance(instance)
 }
@@ -11,5 +11,13 @@ terminateInstance(instance)
 \code{\link{launchInstance}} or \code{\link{getInstanceDescription}}.}
 }
 \description{
-Title
+Terminates the instance.  NOTE: any block devices setup with
+\code{deleteOnTermination = TRUE} will be deleted and ALL data LOST!
+}
+\details{
+This package doesn't offer an API for stopping and resuming instances, only
+terminating them.  If you want to manually stop and start instances, you can
+get a new \code{instance} object to use with the other functions in this
+package by passing the instanceId to \code{\link{getInstanceDescription}}
+function.
 }

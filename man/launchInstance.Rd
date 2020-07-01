@@ -35,18 +35,18 @@ default is extremely conservative.}
 Default is set for Amazon Linux AMIs.}
 
 \item{sshTimeout}{How many times to re-test connecting over ssh after
-recieving a timeout error.}
+recieving a timeout or connection refused error.  This function waits the
+duraction of 'throttle' between attempts.}
 }
 \value{
 An \code{instance} object that can be used with other functions in
-  this package that need to communicate with your launched instance.
+  this package.
 }
 \description{
 This wrapper function launches an EC2 instance from an AMI image ID, monitors
 instance initialization and startup, and handles mounting any additional
 block devices at the specified locations.  It returns an \code{instance}
-object which is used by other functions in this package to communicate with
-the instance.
+object which is used by other functions in this package
 }
 \details{
 This function is designed to be as simple as possible and does not support
