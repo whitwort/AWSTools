@@ -14,9 +14,9 @@ waitForJobs(instance, wait = 10)
 running on the instance.}
 }
 \value{
-The \code{instance} object.
+Invisibly returns the \code{instance} object.
 }
 \description{
 This function blocks the current thread of execution until all of the jobs on
-the given instance have finished.
+the given instance have finished running.
 }

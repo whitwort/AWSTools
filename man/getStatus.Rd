@@ -2,7 +2,7 @@
 % Please edit documentation in R/instances.R
 \name{getStatus}
 \alias{getStatus}
-\title{Get the status of all jobs launched on an EC2 instance.}
+\title{Get the status an EC2 instance.}
 \usage{
 getStatus(instance, session = NULL)
 }
@@ -14,8 +14,10 @@ getStatus(instance, session = NULL)
 created with ssh::ssh_connect.}
 }
 \value{
-The \code{instance} object.
+A list containing two named elemements: \code{jobs} a data.frame
+  giving the status of all jobs launched on the instance and \code{system} a
+  list containing system summary information.
 }
 \description{
-Get the status of all jobs launched on an EC2 instance.
+This function requires \code{top} on the instance.
 }

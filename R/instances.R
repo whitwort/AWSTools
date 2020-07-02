@@ -457,14 +457,18 @@ checkAlive <- function(instance) {
           )
 }
 
-#' Get the status of all jobs launched on an EC2 instance.
+#' Get the status an EC2 instance.
+#'
+#' This function requires \code{top} on the instance.
 #'
 #' @param instance An instance objected created with
 #'   \code{\link{launchInstance}} or \code{\link{getInstanceDescription}}.
 #' @param session Optionally provide an existing ssh session to the instance
 #'   created with ssh::ssh_connect.
 #'
-#' @return The \code{instance} object.
+#' @return A list containing two named elemements: \code{jobs} a data.frame
+#'   giving the status of all jobs launched on the instance and \code{system} a
+#'   list containing system summary information.
 #' @export
 #' 
 getStatus <- function(instance, session = NULL) {
@@ -475,37 +479,13 @@ getStatus <- function(instance, session = NULL) {
     cat(crayon::green("  done.\n"))
   }
   
-  procTables <- lapply( instance$jobPaths
-                      , function(path) {
-                          jresp <- ssh::ssh_exec_internal( session
-                                                         , paste0("cat ", path, "/jobs.pid")
-                                                         )
-                          lresp <- ssh::ssh_exec_internal( session
-                                                         , paste0("cat ", path, "/launchers.pid")
-                                                         ) 
-                          
-                          jobids    <- strsplit(rawToChar(jresp$stdout), split = "\n")[[1]]
-                          launchids <- strsplit(rawToChar(lresp$stdout), split = "\n")[[1]]
-                          
-                          data.frame( pid  = as.numeric(c(jobids, launchids))
-                                    , type = c( rep("job", times = length(jobids))
-                                              , rep("launch", times = length(launchids))
-                                              )
-                                    , path = path
-                                    , stringsAsFactors = FALSE
-                                    )
-                        }
-                      )
-  
-  procTable <- do.call(rbind, args = procTables)
-  
+  # run top on the instance
   tresp    <- ssh::ssh_exec_internal(session, "top -bS -n 1")
   
-  # I've got no clue what's up with this.
-  topS     <- gsub(pattern = "rs:main Q:R+", replacement = "rs:main_Q:R+", x = rawToChar(tresp$stdout))
+  # parse top process table
+  topS     <- gsub(pattern = "rs:main Q:R+", replacement = "rs:main_Q:R+", x = rawToChar(tresp$stdout)) # I've got no clue what's up with this.
   topLines <- strsplit(topS, split = "\n", fixed = TRUE)[[1]]
   
-  topHead  <- topLines[1:5]
   topTable <- read.table( text = paste0( topLines[7:length(topLines)]
                                        , collapse = "\n"
                                        )
@@ -513,15 +493,80 @@ getStatus <- function(instance, session = NULL) {
                         , stringsAsFactors = FALSE
                         )
   
-  procTable$finished <- !(procTable$pid %in% topTable$PID)
-  procTable <- dplyr::left_join(procTable, topTable, by = c("pid" = "PID"))
+  # if jobs have been launched collect associated pids
+  if (!is.null(instance$jobPaths)) {
+    procTables <- lapply( instance$jobPaths
+                          , function(path) {
+                            jresp <- ssh::ssh_exec_internal( session
+                                                           , paste0("cat ", path, "/jobs.pid")
+                                                           )
+                            lresp <- ssh::ssh_exec_internal( session
+                                                           , paste0("cat ", path, "/launchers.pid")
+                                                           ) 
+                            
+                            jobids    <- strsplit( rawToChar(jresp$stdout)
+                                                 , split = "\n"
+                                                 )[[1]]
+                            launchids <- strsplit( rawToChar(lresp$stdout)
+                                                 , split = "\n"
+                                                 )[[1]]
+                            
+                            data.frame( pid  = as.numeric(c(jobids, launchids))
+                                      , type = c( rep("job", times = length(jobids))
+                                                , rep("launch", times = length(launchids))
+                                                )
+                                      , path = path
+                                      , stringsAsFactors = FALSE
+                                      )
+                          }
+    )
+    
+    procTable <- do.call(rbind, args = procTables)
+    
+    procTable$finished <- !(procTable$pid %in% topTable$PID)
+    procTable <- dplyr::left_join(procTable, topTable, by = c("pid" = "PID"))
+    
+    colnames(procTable)[5:15] <- c("user", "priority", "nice", "virtual memory (KB)", "residual memory (KB)", "shared memory (KB)", "status", "% CPU", "% memory", "CPU time", "command")
+    procTable$status <- c(D = "uninteruptable sleep", R = "running", S = "sleeping", T = "traced or stopped", Z = "zombie")[procTable$status]
   
-  colnames(procTable)[5:15] <- c("user", "priority", "nice", "virtual memory (KB)", "residual memory (KB)", "shared memory (KB)", "status", "% CPU", "% memory", "CPU time", "command")
-  procTable$status <- c(D = "uninteruptable sleep", R = "running", S = "sleeping", T = "traced or stopped", Z = "zombie")[procTable$status]
+  } else {
+    procTable <- NA
+  }
   
-  ssh::ssh_disconnect(session)
+  # parse top summary lines
+  topHead <- topLines[1:5]
   
-  procTable
+  m  <- regexpr("up\\s\\d+\\s.+?,", topHead[1])
+  up <- substring(topHead[1], m + 3, m + attr(m, 'match.length') - 2)
+  
+  parseCPU <- function(t) {
+    m <- regexpr(paste0("\\d\\.\\d+\\s", t), topHead[3])
+    substring(topHead[3], m, m + attr(m, 'match.length') - 4)
+  }
+  
+  us <- parseCPU("us")
+  sy <- parseCPU("sy")
+  id <- parseCPU("id")
+  
+  parseMEM <- function(t) {
+    m <- regexpr(paste0("\\d+\\s", t), topHead[4])
+    substring(topHead[4], m, m + attr(m, 'match.length') - nchar(t) - 2)
+  }
+  
+  total <- parseMEM("total")
+  used  <- parseMEM("used")
+  free  <- parseMEM("free")
+  
+  list( jobs   = procTable
+      , system = list( up        = up
+                     , cpu.us    = us
+                     , cpu.sy    = sy
+                     , cpu.id    = id
+                     , mem.total = total
+                     , mem.used  = used
+                     , mem.free  = free
+                     )
+      )
   
 }
 
@@ -535,10 +580,9 @@ getStatus <- function(instance, session = NULL) {
 #' @param wait The time (in seconds) to wait between checking on the state of jobs
 #'   running on the instance.
 #'
-#' @return The \code{instance} object.
+#' @return Invisibly returns the \code{instance} object.
 #' @export
 #'
-#' @examples
 waitForJobs <- function(instance, wait = 10) {
   
   cat("Opening ssh connection to instance...\n  ")
@@ -547,7 +591,7 @@ waitForJobs <- function(instance, wait = 10) {
   
   cat("Waiting for all jobs to finish...")
   status <- getStatus(instance, session)
-  while (!all(status$finished)) {
+  while (!all(status$jobs$finished)) {
     Sys.sleep(wait)
     status <- getStatus(instance, session)  
   }
@@ -555,28 +599,107 @@ waitForJobs <- function(instance, wait = 10) {
   
   ssh::ssh_disconnect(session)
   
-  instance
+  invisible(instance)
   
 }
 
 #' Terminate an instance
 #'
-#' Terminates the instance.  \bold{WARNING}: any block devices setup with
-#' \code{deleteOnTermination = TRUE} will be deleted and ALL data LOST!
+#' Terminates the instance. \bold{WARNING}: any block devices setup with
+#' \code{deleteOnTermination = TRUE} will be deleted and ALL data LOST!  A
+#' termianted instance cannot be restarted.
 #'
-#' This package doesn't offer an API for stopping and resuming instances, only
-#' terminating them.  If you want to manually stop and start instances, you can
-#' get a new \code{instance} object to use with the other functions in this
-#' package by passing the instanceId to \code{\link{getInstanceDescription}}
-#' function.
-#' 
 #' @param instance An instance objected created with
 #'   \code{\link{launchInstance}} or \code{\link{getInstanceDescription}}.
 #'
+#' @return Invisibly returns the \code{instance} object.
 #' @export
 #' 
 terminateInstance <- function(instance) {
   ec2  <- paws::ec2()
   resp <- ec2$terminate_instances(InstanceIds = instance$id)
   cat("Instance state: ", crayon::cyan(resp$TerminatingInstances[[1]]$CurrentState$Name), "\n")
+  
+  invisible(instance)
+}
+
+#' Stop a running instance
+#'
+#' Stops the instance. \bold{WARNING}: ALL block devices associated with the
+#' instance will continue to persist and incure storage charges even when the
+#' instance is stopped.  Use \code{\link{terminateInstance}} to release
+#' ephermeral block storage.  You can restart a stopped instance with
+#' \code{\link\{startInstance}}.
+#'
+#' @param instance An instance objected created with
+#'   \code{\link{launchInstance}} or \code{\link{getInstanceDescription}}.
+#'
+#' @return The Instance ID for the stopped instance.
+#' @export
+#'
+stopInstance <- function(instance) {
+  cat("Stopping instance...")
+  ec2  <- paws::ec2()
+  resp <- ec2$stop_instances(InstanceIds = instance$id)
+  cat("Instance state: ", crayon::cyan(resp$TerminatingInstances[[1]]$CurrentState$Name), "\n")
+  cat("Instance ID:", crayon::cyan(instance$id))
+  instance$id
+  
+}
+
+#' Starts a stopped instance
+#'
+#' Starts a stopped instance and waits for the instance to start running and for
+#' ssh access to be available.
+#'
+#' @param instanceId The Instance ID for the stopped instance to start.
+#' @param throttle The amount of time to wait (in seconds) before repeating
+#'   requests to the AWS API.  The account-wide limit is 10,000 r/s, so this
+#'   default is extremely conservative.
+#' @param username The administrator username to use when logging in over ssh.
+#'   The user must have sudo privileges. Default is set for Amazon Linux AMIs.
+#' @param sshTimeout How many times to re-test connecting over ssh after
+#'   recieving a timeout or connection refused error.  This function waits the
+#'   duraction of 'throttle' between attempts.
+#'
+#' @return An \code{instance} object that can be used with the other functions
+#'   in this package.
+#' @export
+#'
+startInstance <- function( instanceId
+                         , throttle   = 1
+                         , username   = "ec2-user"
+                         , sshTimeout = 10
+                         ) {
+  
+  cat("Starting instance...")
+  ec2  <- paws::ec2()
+  ec2$start_instances(InstanceIds = instanceId)
+  cat(crayon::green(" done.\n"))
+  
+  instance <- getInstanceDescription(instanceId, throttle)
+  
+  # check ssh access
+  host <- paste0(username, "@", instance$ip)
+  Sys.sleep(5)
+  cat("Waiting for an ssh connection to:", crayon::cyan(host), "...\n  ")
+  sshTimeouts <- 0
+  while (!trySSH(host)) {
+    if (sshTimeouts == sshTimeout) {
+      cat( crayon::red(" failed.\n\n")
+         , "Your instance is running but an error occured when trying to connect to it over ssh; be sure to terminate it using 'terminateInstance', the web console or AWS CLI!  It may be that we just need to wait longer for it to get up and running; try increasing the value of 'sshTimeout'.  Also check to make sure that 'sshd' is installed and configured on your AMI and that the firewall is setup corretly through your security group.\n\nYou might try debugging the problem by running ssh in verbose mode with this terminal command:\n", crayon::cyan("ssh -v", host)
+         )
+      return(instance)
+    }
+    
+    Sys.sleep(throttle)
+    sshTimeouts <- sshTimeouts + 1
+  }
+  
+  cat(crayon::green("  done.\n"))
+  cat(crayon::green("\nSuccess!"), "Your instance is ready.\n")
+  
+  instance$host <- host
+  instance
+  
 }

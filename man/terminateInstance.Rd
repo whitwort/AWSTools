@@ -10,14 +10,11 @@ terminateInstance(instance)
 \item{instance}{An instance objected created with
 \code{\link{launchInstance}} or \code{\link{getInstanceDescription}}.}
 }
-\description{
-Terminates the instance.  \bold{WARNING}: any block devices setup with
-\code{deleteOnTermination = TRUE} will be deleted and ALL data LOST!
+\value{
+Invisibly returns the \code{instance} object.
 }
-\details{
-This package doesn't offer an API for stopping and resuming instances, only
-terminating them.  If you want to manually stop and start instances, you can
-get a new \code{instance} object to use with the other functions in this
-package by passing the instanceId to \code{\link{getInstanceDescription}}
-function.
+\description{
+Terminates the instance. \bold{WARNING}: any block devices setup with
+\code{deleteOnTermination = TRUE} will be deleted and ALL data LOST!  A
+termianted instance cannot be restarted.
 }
