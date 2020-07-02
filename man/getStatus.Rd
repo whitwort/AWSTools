@@ -2,14 +2,20 @@
 % Please edit documentation in R/instances.R
 \name{getStatus}
 \alias{getStatus}
-\title{Get the status of jobs launched on an EC2 instance.}
+\title{Get the status of all jobs launched on an EC2 instance.}
 \usage{
-getStatus(instance)
+getStatus(instance, session = NULL)
 }
 \arguments{
 \item{instance}{An instance objected created with
 \code{\link{launchInstance}} or \code{\link{getInstanceDescription}}.}
+
+\item{session}{Optionally provide an existing ssh session to the instance
+created with ssh::ssh_connect.}
+}
+\value{
+The \code{instance} object.
 }
 \description{
-Get the status of jobs launched on an EC2 instance.
+Get the status of all jobs launched on an EC2 instance.
 }

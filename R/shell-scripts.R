@@ -85,12 +85,17 @@ makeLaunchScript <- function( scripts
   
   scripts$launch     <- launchScript
   scripts$remotePath <- workingPath
-  scripts$logPath    <- file.path(workingPath, logs)
+  scripts$logPath    <- file.path(workingPath, logs, fsep = "/")
   
   cat( "#!/bin/sh\n"
      , paste("mkdir", scripts$logPath)
      , prelaunch
-     , paste( paste0("nohup ", file.path(scripts$remotePath, scripts$jobs)," &> ", file.path(scripts$logPath, paste0(scripts$jobs, ".log")), ' &; _pid=$!; echo "$_pid" >> jobs.pid')
+     , paste( paste0( "nohup "
+                    , file.path(scripts$remotePath, scripts$jobs, fsep = "/")
+                    ," &> "
+                    , file.path(scripts$logPath, paste0(scripts$jobs, ".log"), fsep = "/")
+                    , ' &\n _pid=$!\necho "$_pid" >> jobs.pid'
+                    )
             , collapse = "\n"
             )
      , postlaunch

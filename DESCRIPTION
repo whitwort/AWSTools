@@ -16,4 +16,5 @@ Imports:
   whisker,
   paws,
   crayon,
-  ssh
+  ssh,
+  dplyr

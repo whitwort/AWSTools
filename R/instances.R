@@ -141,28 +141,32 @@ launchInstance <- function( imageId
   cat(crayon::green("  done.\n"))
   
   # setup block device mounts
+  if (!is.null(blockDevices)) {
+    
   cat("Connecting to ssh to format and mount block devices...\n  ")
   session <- ssh::ssh_connect(host)
-  lapply( blockDevices
-        , function(l) {
-            mount <- l$mount
-            
-            cat("  Formatting", crayon::cyan(mount$deviceName), "as", crayon::cyan(mount$fsType), "...")
-            ssh::ssh_exec_wait(session, paste("sudo mkfs -t", mount$fsType, mount$deviceName), std_out = function(...) {})
-            cat(crayon::green("  done.\n"))
-            
-            cat("  Mounting", crayon::cyan(mount$deviceName), "at", crayon::cyan(mount$mountDir), "...")
-            ssh::ssh_exec_wait(session, paste("sudo mkdir", mount$mountDir))
-            ssh::ssh_exec_wait(session, paste("sudo mount", mount$deviceName, mount$mountDir))
-            cat(crayon::green(" done.\n"))
-            
-            cat("  Setting ownership of", crayon::cyan(mount$mountDir), "to", crayon::cyan(mount$owner), "...")
-            ssh::ssh_exec_wait(session, paste("sudo chown", mount$owner, mount$mountDir))
-            cat(crayon::green(" done.\n"))
-            
-          }
-        )
-  cat(crayon::green("done.\n"))
+    lapply( blockDevices
+          , function(l) {
+              mount <- l$mount
+              
+              cat("  Formatting", crayon::cyan(mount$deviceName), "as", crayon::cyan(mount$fsType), "...")
+              ssh::ssh_exec_wait(session, paste("sudo mkfs -t", mount$fsType, mount$deviceName), std_out = function(...) {})
+              cat(crayon::green("  done.\n"))
+              
+              cat("  Mounting", crayon::cyan(mount$deviceName), "at", crayon::cyan(mount$mountDir), "...")
+              ssh::ssh_exec_wait(session, paste("sudo mkdir", mount$mountDir))
+              ssh::ssh_exec_wait(session, paste("sudo mount", mount$deviceName, mount$mountDir))
+              cat(crayon::green(" done.\n"))
+              
+              cat("  Setting ownership of", crayon::cyan(mount$mountDir), "to", crayon::cyan(mount$owner), "...")
+              ssh::ssh_exec_wait(session, paste("sudo chown", mount$owner, mount$mountDir))
+              cat(crayon::green(" done.\n"))
+              
+            }
+          )
+    cat(crayon::green("done.\n"))
+    ssh::ssh_disconnect(session)
+  }
   
   cat(crayon::green("\nSuccess!"), "Your instance is ready.\n")
   
@@ -258,7 +262,10 @@ getDescription <- function(instanceId) {
 }
 
 connectionError <- function(instanceId) {
-  cat("An error occured when trying to connect to your EC2 instance or check its status.  Please check the instance state using the Web console or AWS-cli as it may still be running; the InstanceId is: ", crayon::cyan$bold(instanceId), ".\n\n Error message:")
+  cat("An error occured when trying to connect to your EC2 instance or check its status.  Please check the instance state using the Web console or AWS-cli as it may still be running; the InstanceId is: "
+     , crayon::cyan$bold(instanceId)
+     , ".\n\n Error message:"
+     )
 }
 
 #' Describe one or more block devices (EBS) to create, format, and mount on an
@@ -376,49 +383,61 @@ launchJobs <- function( instance
                       , permissions  = "ug+x"
                       ) {
 
-  localPaths  <- file.path(scripts$path, c(scripts$jobs, scripts$launch))
-  remotePaths <- file.path(scripts$remotePath, c(scripts$jobs, scripts$launch))
+  localPaths  <- file.path(scripts$localPath, c(scripts$jobs, scripts$launch))
+  remotePaths <- file.path(scripts$remotePath, c(scripts$jobs, scripts$launch), fsep = "/")
 
   cat("Opening ssh connection to instance...\n  ")
-  session <- ssh::connect(instance$host)
+  session <- ssh::ssh_connect(instance$host)
   cat(crayon::green("  done.\n"))
   
   cat("Copying scripts to the instance...\n")
   ssh::scp_upload( session
-                 , files = localPaths
-                 , to    = scripts$remotePath
+                 , files   = localPaths
+                 , to      = scripts$remotePath
+                 , verbose = FALSE
                  )
   cat(crayon::green(" done.\n"))
   
   if (!is.null(otherFiles)) {
-    cat("Copying other files to the instance...\n")
+    cat("Copying other files to the instance...")
     ssh::scp_upload( session
-                   , files = otherFiles
-                   , to    = scripts$remotePath
+                   , files   = otherFiles
+                   , to      = scripts$remotePath
+                   , verbose = FALSE
                    )
     cat(crayon::green(" done.\n"))  
   }
   
-  cat("Making scripts executable...\n")
+  cat("Making scripts executable...")
   ssh::ssh_exec_wait( session
                     , paste( "sudo chmod"
                            , permissions
                            , paste(remotePaths, collapse = " ")
                            ) 
                     )
-  cat(crayon::green("done.\n"))
+  cat(crayon::green(" done.\n"))
   
   cat("Running launch script...")
   ssh::ssh_exec_wait(session, paste("cd", scripts$remotePath))
+  
   ssh::ssh_exec_wait( session
                     , paste0( "nohup ./"
                             , scripts$launch
-                            , ' &;_pid=$!;echo "$_pid" >> launchers.pid\n'
+                            , ' >launch.out 2>&1 &\n_pid=$!\necho "$_pid" >> launchers.pid'
                             )
                     )
-  cat(crayon::green("done.\n"))
+  cat(crayon::green(" done.\n"))
     
   cat("You can check the status of your jobs using 'getStatus'.")
+  
+  instance$jobPaths <- if (is.null(instance$jobPaths)) {
+    scripts$remotePath
+  } else {
+    unique(c(instance$jobPaths, scripts$remotePath))
+  }
+  
+  ssh::ssh_disconnect(session)
+  
   instance
   
 }
@@ -438,15 +457,105 @@ checkAlive <- function(instance) {
           )
 }
 
-#' Get the status of jobs launched on an EC2 instance.
+#' Get the status of all jobs launched on an EC2 instance.
 #'
 #' @param instance An instance objected created with
 #'   \code{\link{launchInstance}} or \code{\link{getInstanceDescription}}.
+#' @param session Optionally provide an existing ssh session to the instance
+#'   created with ssh::ssh_connect.
 #'
-#' @return
+#' @return The \code{instance} object.
+#' @export
+#' 
+getStatus <- function(instance, session = NULL) {
+  
+  if (is.null(session)) {
+    cat("Opening ssh connection to instance...\n  ")
+    session <- ssh::ssh_connect(instance$host)
+    cat(crayon::green("  done.\n"))
+  }
+  
+  procTables <- lapply( instance$jobPaths
+                      , function(path) {
+                          jresp <- ssh::ssh_exec_internal( session
+                                                         , paste0("cat ", path, "/jobs.pid")
+                                                         )
+                          lresp <- ssh::ssh_exec_internal( session
+                                                         , paste0("cat ", path, "/launchers.pid")
+                                                         ) 
+                          
+                          jobids    <- strsplit(rawToChar(jresp$stdout), split = "\n")[[1]]
+                          launchids <- strsplit(rawToChar(lresp$stdout), split = "\n")[[1]]
+                          
+                          data.frame( pid  = as.numeric(c(jobids, launchids))
+                                    , type = c( rep("job", times = length(jobids))
+                                              , rep("launch", times = length(launchids))
+                                              )
+                                    , path = path
+                                    , stringsAsFactors = FALSE
+                                    )
+                        }
+                      )
+  
+  procTable <- do.call(rbind, args = procTables)
+  
+  tresp    <- ssh::ssh_exec_internal(session, "top -bS -n 1")
+  
+  # I've got no clue what's up with this.
+  topS     <- gsub(pattern = "rs:main Q:R+", replacement = "rs:main_Q:R+", x = rawToChar(tresp$stdout))
+  topLines <- strsplit(topS, split = "\n", fixed = TRUE)[[1]]
+  
+  topHead  <- topLines[1:5]
+  topTable <- read.table( text = paste0( topLines[7:length(topLines)]
+                                       , collapse = "\n"
+                                       )
+                        , header           = TRUE
+                        , stringsAsFactors = FALSE
+                        )
+  
+  procTable$finished <- !(procTable$pid %in% topTable$PID)
+  procTable <- dplyr::left_join(procTable, topTable, by = c("pid" = "PID"))
+  
+  colnames(procTable)[5:15] <- c("user", "priority", "nice", "virtual memory (KB)", "residual memory (KB)", "shared memory (KB)", "status", "% CPU", "% memory", "CPU time", "command")
+  procTable$status <- c(D = "uninteruptable sleep", R = "running", S = "sleeping", T = "traced or stopped", Z = "zombie")[procTable$status]
+  
+  ssh::ssh_disconnect(session)
+  
+  procTable
+  
+}
+
+#' Wait for jobs on an instance to finish
+#'
+#' This function blocks the current thread of execution until all of the jobs on
+#' the given instance have finished running.
+#'
+#' @param instance An instance objected created with
+#'   \code{\link{launchInstance}} or \code{\link{getInstanceDescription}}.
+#' @param wait The time (in seconds) to wait between checking on the state of jobs
+#'   running on the instance.
+#'
+#' @return The \code{instance} object.
 #' @export
 #'
-getStatus <- function(instance) {
+#' @examples
+waitForJobs <- function(instance, wait = 10) {
+  
+  cat("Opening ssh connection to instance...\n  ")
+  session <- ssh::ssh_connect(instance$host)
+  cat(crayon::green("  done.\n"))
+  
+  cat("Waiting for all jobs to finish...")
+  status <- getStatus(instance, session)
+  while (!all(status$finished)) {
+    Sys.sleep(wait)
+    status <- getStatus(instance, session)  
+  }
+  cat(crayon::green(" done.\n"))
+  
+  ssh::ssh_disconnect(session)
+  
+  instance
   
 }
 
