@@ -53,7 +53,9 @@ ui <- function(instances, updateFrequency) {
                             tabItem( fluidRow( tabBox( title = tagList(icon("server"), id)
                                                      , width = 12
                                                      , tabPanel(title = "Status", uiOutput(outputId = paste0(id, "-overview")))
-                                                     , tabPanel(title = "Load", uiOutput(outputId = paste0(id, "-load")))
+                                                     , tabPanel( title = "Load"
+                                                               , plotOutput(outputId = paste0(id, "-load"))
+                                                               )
                                                      , tabPanel(title = "Details", tableOutput(outputId = paste0(id, "-info")))
                                                      )
                                               )
@@ -89,6 +91,15 @@ server <- function(instances) {
                                                    , session = instances[[id]]$session
                                                    )
                )
+        isolate({
+          store[[id]]$history <- if (is.null(store[[id]]$history)) {
+            store[[id]]$status$system$mpstat
+          } else {
+            rbind(store[[id]]$history, store[[id]]$status$system$mpstat)
+          }
+          
+        })
+        
       }
       
       store

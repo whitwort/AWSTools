@@ -10,7 +10,7 @@
 #' This function is designed to be as simple as possible and does not support
 #' the vast majority of configuration options available when launching EC2
 #' instances.  If it doesn't meet your needs see the \code{paws} package for a
-#' full featured EC2 SDK  You can use the \code{paws::ec2()$run_instances}
+#' full featured EC2 SDK.  You can use the \code{paws::ec2()$run_instances}
 #' function to launch your instance and then pass the `InstanceID` to
 #' \code{\link{getInstanceDescription}} function to generate an \code{instance}
 #' object to use with the other functions in this package.
@@ -567,6 +567,9 @@ getStatus <- function(instance, session = NULL) {
                      , header           = TRUE
                      , stringsAsFactors = FALSE
                      )
+  colnames(cpu)[1] <- "time"
+  cpu$time <- Sys.time()
+  cpu$PM <- NULL
   
   list( jobs   = procTable
       , system = list( cpu.us    = as.numeric(us)
