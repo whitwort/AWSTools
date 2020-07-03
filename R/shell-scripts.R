@@ -10,10 +10,11 @@
 #'   even number of threads to each job based on the total process count.
 #' @param jobScripts The file names for the job scripts to create through
 #'   templating.  Should match the length of the longest variable argument.
-#' @param scriptPath Path to the local folder where rendered scripts should be saved.
+#' @param scriptPath Path to the local folder where rendered scripts should be
+#'   saved.
 #' @param ... A variable number of other arguments that are available as
-#'   variable bindings.  Values not of length 1 should all be of the same length
-#'   (the number of job scripts being created).
+#'   variable bindings when the template is rendered.  Values not of length 1
+#'   should all be of the same length (the number of job scripts being created).
 #'
 #' @return A List with one named element (\code{jobs}) containing a vector of
 #'   job script file names.  Passed to \code{\link{makeLaunchScript}}

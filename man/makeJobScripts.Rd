@@ -17,11 +17,12 @@ templating.  Should match the length of the longest variable argument.}
 `threads` variable available during template rendering, which doles out an
 even number of threads to each job based on the total process count.}
 
-\item{scriptPath}{Path to the local folder where rendered scripts should be saved.}
+\item{scriptPath}{Path to the local folder where rendered scripts should be
+saved.}
 
 \item{...}{A variable number of other arguments that are available as
-variable bindings.  Values not of length 1 should all be of the same length
-(the number of job scripts being created).}
+variable bindings when the template is rendered.  Values not of length 1
+should all be of the same length (the number of job scripts being created).}
 }
 \value{
 A List with one named element (\code{jobs}) containing a vector of
