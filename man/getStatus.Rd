@@ -19,5 +19,6 @@ A list containing two named elemements: \code{jobs} a data.frame
   list containing system summary information.
 }
 \description{
-This function requires \code{top} on the instance.
+This function requires \code{top} and \code{mpstat} to be available on the
+instance.
 }

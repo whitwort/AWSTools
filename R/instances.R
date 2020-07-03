@@ -1,3 +1,4 @@
+
 #' Launch an EC2 instance
 #'
 #' This wrapper function launches an EC2 instance from an AMI, monitors instance
@@ -112,7 +113,7 @@ launchInstance <- function( imageId
   instanceId <- resp$Instances[[1]]$InstanceId
   cat("The instance id is:", crayon::cyan(instanceId), "\n")
   
-  instance <- getInstanceDescription(instanceId, throttle)
+  instance <- getInstanceDescription(instanceId, throttle, username)
   
   ## NB: the AWS API describe_instance_status function reports on whether or not
   ## the System and Interface are reachable.  However these checks are very slow
@@ -170,7 +171,7 @@ launchInstance <- function( imageId
   
   cat(crayon::green("\nSuccess!"), "Your instance is ready.\n")
   
-  instance$host <- host
+  instance$name <- tags$Name
   instance
 }
 
@@ -210,11 +211,13 @@ trySSH <- function(host) {
 #' @param throttle The amount of time to wait (in seconds) before repeating
 #'   requests to the AWS API.  The account-wide limit is 10,000 r/s, so this
 #'   default is extremely conservative.
+#' @param username The administrator username to use when logging in over ssh.
+#'   The user must have sudo privileges. Default is set for Amazon Linux AMIs.
 #'
 #' @return An \code{instance} object used by the other functions in this package
 #' @export
 #' 
-getInstanceDescription <- function(instanceId, throttle = 1) {
+getInstanceDescription <- function(instanceId, throttle = 1, username = "ec2-user") {
 
   # wait for the instance State to be running
   cat("Waiting for the instance state to be 'running'...")
@@ -229,8 +232,9 @@ getInstanceDescription <- function(instanceId, throttle = 1) {
   resp <- getDescription(instanceId)
   cat(crayon::green(" done.\n"))
   
-  list( id = instanceId
-      , ip = resp$Reservations[[1]]$Instances[[1]]$PublicIpAddress
+  list( id   = instanceId
+      , ip   = resp$Reservations[[1]]$Instances[[1]]$PublicIpAddress
+      , host = paste0(username, "@", resp$Reservations[[1]]$Instances[[1]]$PublicIpAddress)
       )
 }
 
@@ -459,7 +463,8 @@ checkAlive <- function(instance) {
 
 #' Get the status an EC2 instance.
 #'
-#' This function requires \code{top} on the instance.
+#' This function requires \code{top} and \code{mpstat} to be available on the
+#' instance.
 #'
 #' @param instance An instance objected created with
 #'   \code{\link{launchInstance}} or \code{\link{getInstanceDescription}}.
@@ -535,12 +540,9 @@ getStatus <- function(instance, session = NULL) {
   
   # parse top summary lines
   topHead <- topLines[1:5]
-  
-  m  <- regexpr("up\\s\\d+\\s.+?,", topHead[1])
-  up <- substring(topHead[1], m + 3, m + attr(m, 'match.length') - 2)
-  
+
   parseCPU <- function(t) {
-    m <- regexpr(paste0("\\d\\.\\d+\\s", t), topHead[3])
+    m <- regexpr(paste0("\\d+\\.\\d+\\s", t), topHead[3])
     substring(topHead[3], m, m + attr(m, 'match.length') - 4)
   }
   
@@ -557,14 +559,23 @@ getStatus <- function(instance, session = NULL) {
   used  <- parseMEM("used")
   free  <- parseMEM("free")
   
+  # run mpstat on the instance
+  mresp <- ssh::ssh_exec_internal(session, "mpstat -P ALL 1 1")
+  mpS   <- rawToChar(mresp$stdout)
+  cpuS  <- strsplit(mpS, "\n\n")[[1]][2]
+  cpu   <- read.table( text             = strsplit(cpuS, "\n")[[1]]
+                     , header           = TRUE
+                     , stringsAsFactors = FALSE
+                     )
+  
   list( jobs   = procTable
-      , system = list( up        = up
-                     , cpu.us    = us
-                     , cpu.sy    = sy
-                     , cpu.id    = id
-                     , mem.total = total
-                     , mem.used  = used
-                     , mem.free  = free
+      , system = list( cpu.us    = as.numeric(us)
+                     , cpu.sy    = as.numeric(sy)
+                     , cpu.id    = as.numeric(id)
+                     , mem.total = as.numeric(total)
+                     , mem.used  = as.numeric(used)
+                     , mem.free  = as.numeric(free)
+                     , mpstat    = cpu 
                      )
       )
   
@@ -677,7 +688,7 @@ startInstance <- function( instanceId
   ec2$start_instances(InstanceIds = instanceId)
   cat(crayon::green(" done.\n"))
   
-  instance <- getInstanceDescription(instanceId, throttle)
+  instance <- getInstanceDescription(instanceId, throttle, username)
   
   # check ssh access
   host <- paste0(username, "@", instance$ip)
@@ -699,7 +710,6 @@ startInstance <- function( instanceId
   cat(crayon::green("  done.\n"))
   cat(crayon::green("\nSuccess!"), "Your instance is ready.\n")
   
-  instance$host <- host
   instance
   
 }

@@ -4,7 +4,7 @@
 \alias{getInstanceDescription}
 \title{Gather descriptive information about a running instance}
 \usage{
-getInstanceDescription(instanceId, throttle = 1)
+getInstanceDescription(instanceId, throttle = 1, username = "ec2-user")
 }
 \arguments{
 \item{instanceId}{The InstanceID returned or displayed through whatever
@@ -13,6 +13,9 @@ mechanism used to launch the EC2 instance}
 \item{throttle}{The amount of time to wait (in seconds) before repeating
 requests to the AWS API.  The account-wide limit is 10,000 r/s, so this
 default is extremely conservative.}
+
+\item{username}{The administrator username to use when logging in over ssh.
+The user must have sudo privileges. Default is set for Amazon Linux AMIs.}
 }
 \value{
 An \code{instance} object used by the other functions in this package

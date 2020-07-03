@@ -1,3 +1,4 @@
+
 #' Generate a set of shell scripts to to launch individual jobs
 #'
 #' This function uses a whisker (aka Mustache) template file to create one or
