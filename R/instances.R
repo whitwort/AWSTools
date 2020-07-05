@@ -11,7 +11,7 @@
 #' the vast majority of configuration options available when launching EC2
 #' instances.  If it doesn't meet your needs see the \code{paws} package for a
 #' full featured EC2 SDK.  You can use the \code{paws::ec2()$run_instances}
-#' function to launch your instance and then pass the `InstanceID` to
+#' function to launch your instance and then pass the `InstanceID` to the
 #' \code{\link{getInstanceDescription}} function to generate an \code{instance}
 #' object to use with the other functions in this package.
 #'
@@ -144,27 +144,52 @@ launchInstance <- function( imageId
   # setup block device mounts
   if (!is.null(blockDevices)) {
     
-  cat("Connecting to ssh to format and mount block devices...\n  ")
-  session <- ssh::ssh_connect(host)
-    lapply( blockDevices
-          , function(l) {
-              mount <- l$mount
-              
-              cat("  Formatting", crayon::cyan(mount$deviceName), "as", crayon::cyan(mount$fsType), "...")
-              ssh::ssh_exec_wait(session, paste("sudo mkfs -t", mount$fsType, mount$deviceName), std_out = function(...) {})
-              cat(crayon::green("  done.\n"))
-              
-              cat("  Mounting", crayon::cyan(mount$deviceName), "at", crayon::cyan(mount$mountDir), "...")
-              ssh::ssh_exec_wait(session, paste("sudo mkdir", mount$mountDir))
-              ssh::ssh_exec_wait(session, paste("sudo mount", mount$deviceName, mount$mountDir))
-              cat(crayon::green(" done.\n"))
-              
-              cat("  Setting ownership of", crayon::cyan(mount$mountDir), "to", crayon::cyan(mount$owner), "...")
-              ssh::ssh_exec_wait(session, paste("sudo chown", mount$owner, mount$mountDir))
-              cat(crayon::green(" done.\n"))
-              
-            }
-          )
+    cat("Connecting to ssh to format and mount block devices...\n  ")
+    session <- ssh::ssh_connect(host)
+      lapply( blockDevices
+            , function(l) {
+                mount <- l$mount
+                
+                cat( "  Formatting"
+                   , crayon::cyan(mount$deviceName)
+                   , "as"
+                   , crayon::cyan(mount$fsType)
+                   , "..."
+                   )
+                ssh::ssh_exec_wait( session
+                                  , paste("sudo mkfs -t", mount$fsType, mount$deviceName)
+                                  , std_out = function(...) {}
+                                  , std_err = checkSUDOError
+                                  )
+                cat(crayon::green("  done.\n"))
+                
+                cat( "  Mounting"
+                   , crayon::cyan(mount$deviceName)
+                   , "at"
+                   , crayon::cyan(mount$mountDir)
+                   , "..."
+                   )
+                ssh::ssh_exec_wait( session
+                                  , paste("sudo mkdir", mount$mountDir)
+                                  )
+                ssh::ssh_exec_wait( session
+                                  , paste("sudo mount", mount$deviceName, mount$mountDir)
+                                  )
+                cat(crayon::green(" done.\n"))
+                
+                cat( "  Setting ownership of"
+                   , crayon::cyan(mount$mountDir)
+                   , "to"
+                   , crayon::cyan(mount$owner), "..."
+                   )
+                ssh::ssh_exec_wait( session
+                                  , paste("sudo chown", mount$owner, mount$mountDir)
+                                  )
+                cat(crayon::green(" done.\n"))
+                
+              }
+            )
+      
     cat(crayon::green("done.\n"))
     ssh::ssh_disconnect(session)
   }
@@ -185,12 +210,24 @@ trySSH <- function(host) {
                 return(FALSE)
               } else {
                 cat( crayon::red(" failed.\n\n")
-                   , "An error occured when trying to connect to your instance over ssh.  If your permissions were denied you may not have your local ssh keys setup corretly.  See the 'configuration' vignette for instructions.  Try debugging the problem by running ssh in verbose mode:\n\n$ssh -v ", host, "\n\nError message:\n\n"
+                   , "An error occured when trying to connect to your instance over ssh.  If your permissions were denied you may not have your local ssh keys setup corretly.  See the 'getting-started' vignette for instructions.  Try debugging the problem by running ssh in verbose mode:\n\n$ssh -v ", host, "\n\nError message:\n\n"
                    )
                 stop(e)
               }
             }
            )
+}
+
+checkSUDOError <- function(e) {
+  if (grepl("not in the sudoers file", e, fixed = TRUE)) {
+    cat(crayon::red(" error."), "\n\nThe logged in user does not have sudo privileges, which is required for this operation.  If you're using Amazon Linux, you can fix this by adding this user to the 'wheel' group from a sudoer account (ec2-user by default).  Error message:\n\n")
+    stop(e)
+  } else if (grepl("no askpass", e, fixed = TRUE)) {
+    cat(crayon::red(" error."), "\n\nThe logged in user is a sudoer but a password must be entered to run sudo. If you are using Amazon Linux, you can give this user the same NOPASSWORD permissions as the default ec2-user by adding a new line to '/etc/sudoers/d/90-cloud-init'.")
+    stop(e)
+  } else {
+    cat(crayon::red(e), "\n\n")
+  }
 }
 
 #' Gather descriptive information about a running instance
@@ -417,6 +454,7 @@ launchJobs <- function( instance
                     , paste( "sudo chmod"
                            , permissions
                            , paste(remotePaths, collapse = " ")
+                           , std_err = checkSUDOError
                            ) 
                     )
   cat(crayon::green(" done.\n"))
@@ -461,9 +499,9 @@ checkAlive <- function(instance) {
           )
 }
 
-#' Get the status an EC2 instance.
+#' Get the status of an EC2 instance.
 #'
-#' This function requires \code{top} and \code{mpstat} to be available on the
+#' This function requires the \code{top} and \code{mpstat} programs on the
 #' instance.
 #'
 #' @param instance An instance objected created with

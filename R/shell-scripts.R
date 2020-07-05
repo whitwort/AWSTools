@@ -1,13 +1,13 @@
 
-#' Generate a set of shell scripts to to launch individual jobs
+#' Generate a set of shell scripts to launch individual jobs
 #'
 #' This function uses a whisker (aka Mustache) template file to create one or
 #' more job scripts.
 #'
 #' @param template Path to the script whisker template.
-#' @param processes How many processes launched jobs are sharing  This makes a
-#'   `threads` variable available during template rendering, which doles out an
-#'   even number of threads to each job based on the total process count.
+#' @param processes The number of processes launched jobs are sharing  This
+#'   makes a `threads` variable available during template rendering, which doles
+#'   out an even number of threads to each job based on the total process count.
 #' @param jobScripts The file names for the job scripts to create through
 #'   templating.  Should match the length of the longest variable argument.
 #' @param scriptPath Path to the local folder where rendered scripts should be
