@@ -90,6 +90,7 @@ makeLaunchScript <- function( scripts
   scripts$logPath    <- file.path(workingPath, logs, fsep = "/")
   
   cat( "#!/bin/sh\n"
+     , paste("cd", workingPath)
      , paste("mkdir", scripts$logPath)
      , prelaunch
      , paste( paste0( "nohup "

@@ -2,7 +2,7 @@
 % Please edit documentation in R/instances.R
 \name{getStatus}
 \alias{getStatus}
-\title{Get the status an EC2 instance.}
+\title{Get the status of an EC2 instance.}
 \usage{
 getStatus(instance, session = NULL)
 }
@@ -19,6 +19,6 @@ A list containing two named elemements: \code{jobs} a data.frame
   list containing system summary information.
 }
 \description{
-This function requires \code{top} and \code{mpstat} to be available on the
+This function requires the \code{top} and \code{mpstat} programs on the
 instance.
 }

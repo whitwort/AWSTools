@@ -448,22 +448,20 @@ launchJobs <- function( instance
                    )
     cat(crayon::green(" done.\n"))  
   }
-  
+
   cat("Making scripts executable...")
   ssh::ssh_exec_wait( session
-                    , paste( "sudo chmod"
+                    , paste( paste0("cd ", scripts$remotePath, "; ", "sudo chmod")
                            , permissions
                            , paste(remotePaths, collapse = " ")
-                           , std_err = checkSUDOError
-                           ) 
+                           )
+                    , std_err = checkSUDOError
                     )
   cat(crayon::green(" done.\n"))
   
   cat("Running launch script...")
-  ssh::ssh_exec_wait(session, paste("cd", scripts$remotePath))
-  
   ssh::ssh_exec_wait( session
-                    , paste0( "nohup ./"
+                    , paste0( paste0("cd ", scripts$remotePath, "; nohup ./")
                             , scripts$launch
                             , ' >launch.out 2>&1 &\n_pid=$!\necho "$_pid" >> launchers.pid'
                             )
@@ -589,7 +587,7 @@ getStatus <- function(instance, session = NULL) {
   id <- parseCPU("id")
   
   parseMEM <- function(t) {
-    m <- regexpr(paste0("\\d+\\s", t), topHead[4])
+    m <- regexpr(paste0("\\d+[\\s+]", t), topHead[4])
     substring(topHead[4], m, m + attr(m, 'match.length') - nchar(t) - 2)
   }
   

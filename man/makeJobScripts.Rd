@@ -2,7 +2,7 @@
 % Please edit documentation in R/shell-scripts.R
 \name{makeJobScripts}
 \alias{makeJobScripts}
-\title{Generate a set of shell scripts to to launch individual jobs}
+\title{Generate a set of shell scripts to launch individual jobs}
 \usage{
 makeJobScripts(template, jobScripts, processes = 1,
   scriptPath = "rendered-scripts", ...)
@@ -13,9 +13,9 @@ makeJobScripts(template, jobScripts, processes = 1,
 \item{jobScripts}{The file names for the job scripts to create through
 templating.  Should match the length of the longest variable argument.}
 
-\item{processes}{How many processes launched jobs are sharing  This makes a
-`threads` variable available during template rendering, which doles out an
-even number of threads to each job based on the total process count.}
+\item{processes}{The number of processes launched jobs are sharing  This
+makes a `threads` variable available during template rendering, which doles
+out an even number of threads to each job based on the total process count.}
 
 \item{scriptPath}{Path to the local folder where rendered scripts should be
 saved.}
