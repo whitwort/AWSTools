@@ -118,7 +118,7 @@ launchInstance <- function( imageId
   ## NB: the AWS API describe_instance_status function reports on whether or not
   ## the System and Interface are reachable.  However these checks are very slow
   ## to update and SSH appears to be up and running long before these checks
-  ## *actually* pass.  Therefore the currently implementation is to just try
+  ## *actually* pass.  Therefore the current implementation is to just try
   ## repeated connections with ssh after the state turns to "running" rather
   ## than wait for those tests to pass.  This may be a bad idea.
   
