@@ -453,7 +453,7 @@ launchJobs <- function( instance
                     , std_err = checkSUDOError
                     )
   ssh::ssh_exec_wait( session
-                    , paste( paste0("sudo chomod ")
+                    , paste( paste0("sudo chmod ")
                            , permissions
                            , paste(remotePaths, collapse = " ")
                            )
