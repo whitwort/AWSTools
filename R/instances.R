@@ -41,6 +41,7 @@
 #'   default is extremely conservative.
 #' @param username The administrator username to use when logging in over ssh.
 #'   The user must have sudo privileges. Default is set for Amazon Linux AMIs.
+#' @param groupname Linux group name to use when setting permissions
 #' @param sshTimeout How many times to re-test connecting over ssh after
 #'   recieving a timeout or connection refused error.  This function waits the
 #'   duraction of 'throttle' between attempts.
@@ -58,6 +59,7 @@ launchInstance <- function( imageId
                           , blockDevices       = NULL
                           , throttle           = 1
                           , username           = "ec2-user"
+                          , groupname          = "ec2-user"
                           , sshTimeout         = 10
                           ) {
   
@@ -148,7 +150,8 @@ launchInstance <- function( imageId
     session <- ssh::ssh_connect(host)
       lapply( blockDevices
             , function(l) {
-                mount <- l$mount
+                mount       <- l$mount
+                mount$owner <- paste(username, groupname, sep = ":")
                 
                 cat( "  Formatting"
                    , crayon::cyan(mount$deviceName)
@@ -190,13 +193,14 @@ launchInstance <- function( imageId
               }
             )
       
-    cat(crayon::green("done.\n"))
+    cat(crayon::green("  done.\n"))
     ssh::ssh_disconnect(session)
   }
   
   cat(crayon::green("\nSuccess!"), "Your instance is ready.\n")
   
-  instance$name <- tags$Name
+  instance$name  <- tags$Name
+  instance$owner <- paste(username, groupname, sep = ":")
   instance
 }
 
@@ -341,9 +345,6 @@ connectionError <- function(instanceId) {
 #' @param mountDir The path on the instance file system where the device(s)
 #'   should be mounted after being formatted.  The length of this vector must
 #'   math the length of \code{deviceName}.
-#' @param owner The user and group owners that should be set for the block
-#'   device mount location. This string should be in the standard Linux format
-#'   of "user:group".
 #'
 #' @return A list of block device mappings that can be used with
 #'   \code{\link{launchInstance}}.
@@ -356,7 +357,6 @@ blockDevices <- function( deviceName          = "/dev/xvdf"
                         , encrypted           = FALSE
                         , fsType              = "ext4"
                         , mountDir            = "/data"
-                        , owner               = "ec2-user:ec2-user"                
                         ) {
   
   if (length(deviceName) != length(mountDir)) { 
@@ -370,7 +370,6 @@ blockDevices <- function( deviceName          = "/dev/xvdf"
                   , encrypted
                   , fsType
                   , mountDir
-                  , owner
                   ) { 
           list( mapping = list( DeviceName = deviceName
                               , Ebs = list( DeleteOnTermination = deleteOnTermination
@@ -382,7 +381,6 @@ blockDevices <- function( deviceName          = "/dev/xvdf"
               , mount   = list( deviceName = deviceName
                               , fsType     = fsType
                               , mountDir   = mountDir
-                              , owner      = owner
                               )
               )
           }
@@ -393,7 +391,6 @@ blockDevices <- function( deviceName          = "/dev/xvdf"
         , encrypted
         , fsType
         , mountDir
-        , owner
         , SIMPLIFY   = FALSE
         , USE.NAMES  = FALSE
         )
@@ -407,8 +404,6 @@ blockDevices <- function( deviceName          = "/dev/xvdf"
 #'
 #' @param instance An \code{instance} objected created with
 #'   \code{\link{launchInstance}} or \code{\link{getInstanceDescription}}.
-#' @param scripts A list with launch and job script file names and a script path
-#'   created by \code{\link{makeLaunchScript}}
 #' @param otherFiles NULL or a vector containing full paths to other files to be
 #'   copied to the instance before the launch script is run.
 #' @param permissions Specification for how the executable bit should be set
@@ -427,11 +422,11 @@ launchJobs <- function( instance
   localPaths  <- file.path(scripts$localPath, c(scripts$jobs, scripts$launch))
   remotePaths <- file.path(scripts$remotePath, c(scripts$jobs, scripts$launch), fsep = "/")
 
-  cat("Opening ssh connection to instance...\n  ")
+  cat("Opening ssh connection to the instance...\n  ")
   session <- ssh::ssh_connect(instance$host)
   cat(crayon::green("  done.\n"))
   
-  cat("Copying scripts to the instance...\n")
+  cat("Copying scripts to the instance...")
   ssh::scp_upload( session
                  , files   = localPaths
                  , to      = scripts$remotePath
@@ -451,7 +446,14 @@ launchJobs <- function( instance
 
   cat("Making scripts executable...")
   ssh::ssh_exec_wait( session
-                    , paste( paste0("cd ", scripts$remotePath, "; ", "sudo chmod")
+                    , paste( paste0("cd ", scripts$remotePath, "; ", "sudo chown")
+                           , instance$owner
+                           , paste(remotePaths, collapse = " ")
+                           )
+                    , std_err = checkSUDOError
+                    )
+  ssh::ssh_exec_wait( session
+                    , paste( paste0("sudo chomod")
                            , permissions
                            , paste(remotePaths, collapse = " ")
                            )
