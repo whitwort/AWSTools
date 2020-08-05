@@ -13,7 +13,7 @@ devtools::install_github('whitwort/AWSTools', build_vignettes = TRUE)
 Now take a look at the [Getting started tutorial](https://htmlpreview.github.io/?https://github.com/whitwort/AWSTools/blob/master/vignettes/getting-started.html), or open the vignette in R:
 
 ```r
-library(AWSTool)
+library(AWSTools)
 vignette('getting-started')
 ```
 
