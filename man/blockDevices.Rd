@@ -7,7 +7,7 @@ EC2 instance}
 \usage{
 blockDevices(deviceName = "/dev/xvdf", volumeSize = 8,
   deleteOnTermination = TRUE, volumeType = "gp2", encrypted = FALSE,
-  fsType = "ext4", mountDir = "/data", owner = "ec2-user:ec2-user")
+  fsType = "ext4", mountDir = "/data")
 }
 \arguments{
 \item{deviceName}{A character vector giving the names of one or more block
@@ -34,10 +34,6 @@ This can be any valid argument to 'mkfs -t' on your AMI.}
 \item{mountDir}{The path on the instance file system where the device(s)
 should be mounted after being formatted.  The length of this vector must
 math the length of \code{deviceName}.}
-
-\item{owner}{The user and group owners that should be set for the block
-device mount location. This string should be in the standard Linux format
-of "user:group".}
 }
 \value{
 A list of block device mappings that can be used with

@@ -7,7 +7,7 @@
 launchInstance(imageId, keyName, securityGroupIds,
   instanceType = "t2.micro", shutdownBehavior = "terminate",
   tags = NULL, blockDevices = NULL, throttle = 1,
-  username = "ec2-user", sshTimeout = 10)
+  username = "ec2-user", groupname = "ec2-user", sshTimeout = 10)
 }
 \arguments{
 \item{imageId}{The image-id for the AMI used to launch the instance.}
@@ -44,6 +44,8 @@ default is extremely conservative.}
 
 \item{username}{The administrator username to use when logging in over ssh.
 The user must have sudo privileges. Default is set for Amazon Linux AMIs.}
+
+\item{groupname}{Linux group name to use when setting permissions}
 
 \item{sshTimeout}{How many times to re-test connecting over ssh after
 recieving a timeout or connection refused error.  This function waits the

@@ -10,9 +10,6 @@ launchJobs(instance, scripts, otherFiles = NULL, permissions = "ug+x")
 \item{instance}{An \code{instance} objected created with
 \code{\link{launchInstance}} or \code{\link{getInstanceDescription}}.}
 
-\item{scripts}{A list with launch and job script file names and a script path
-created by \code{\link{makeLaunchScript}}}
-
 \item{otherFiles}{NULL or a vector containing full paths to other files to be
 copied to the instance before the launch script is run.}
 
