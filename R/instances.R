@@ -286,10 +286,10 @@ isRunning <- function(instanceId) {
       state <- resp$Reservations[[1]]$Instances[[1]]$State$Name
       state == "running"
     }
-  , error = function(e) {
-      cat(crayon::red(" failed.\n\n"), connectionError(instanceId))
-      stop(e)
-    }
+  # , error = function(e) {
+  #     cat(crayon::red(" failed.\n\n"), connectionError(instanceId))
+  #     stop(e)
+  #   }
   )
   
 }
