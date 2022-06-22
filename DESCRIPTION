@@ -1,7 +1,7 @@
 Package: AWSTools
 Type: Package
 Title: Tools for working with AWS on data analysis projects.
-Version: 0.1.0
+Version: 0.1.1
 Author: Gregg Whitworth
 Maintainer: Gregg Whitworth <whitwort@gmail.com>
 Description: This package contains a set of R tools designed to ease and automate deploying data analysis projects to EC2 instances.

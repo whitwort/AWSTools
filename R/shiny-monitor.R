@@ -76,7 +76,7 @@ ui <- function(instances, updateFrequency) {
 server <- function(instances) {
   
   for (id in names(instances)) {
-    instances[[id]]$session <- ssh::ssh_connect(instances[[id]]$host)
+    instances[[id]]$session <- ssh::ssh_connect(instances[[id]]$host, instances[[id]]$keyfile)
   }
   
   function(input, output, session) {
