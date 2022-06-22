@@ -29,4 +29,4 @@ Finally, this toolset has been developed and tested on EC2 instances running [Am
 
 ## License
 
-Copyright © 2020 Gregg Whitworth and licensed under [GPLv3](https://www.gnu.org/licenses/gpl-3.0.en.html).
+Copyright © 2022 Gregg Whitworth and licensed under [GPLv3](https://www.gnu.org/licenses/gpl-3.0.en.html).

@@ -10,8 +10,8 @@
 #' This function is designed to be as simple as possible and does not support
 #' the vast majority of configuration options available when launching EC2
 #' instances.  If it doesn't meet your needs see the \code{paws} package for a
-#' full featured EC2 SDK.  You can use the `paws::ec2()$run_instances`
-#' function to launch your instance and then pass the `InstanceID` to the
+#' full featured EC2 SDK.  You can use the `paws::ec2()$run_instances` function
+#' to launch your instance and then pass the `InstanceID` to the
 #' \code{\link{getInstanceDescription}} function to generate an \code{instance}
 #' object to use with the other functions in this package.
 #'
@@ -41,10 +41,15 @@
 #'   default is extremely conservative.
 #' @param username The administrator username to use when logging in over ssh.
 #'   The user must have sudo privileges. Default is set for Amazon Linux AMIs.
+#' @param subnetId The id of the subnet to use.
+#' @param networkInterface the Id of a network interfaces; must be compatible
+#'   with subnet and security groups if non-default.
 #' @param groupname Linux group name to use when setting permissions
+#' @param elasticIP If non-NULL should be an elastic IP allocation ID "eipalloc-...".  
 #' @param sshTimeout How many times to re-test connecting over ssh after
 #'   recieving a timeout or connection refused error.  This function waits the
 #'   duraction of 'throttle' between attempts.
+#' @param sshKeyfile Path to an OpenSSH formatted (PEM) keyfile.
 #'
 #' @return An \code{instance} object that can be used with other functions in
 #'   this package.
@@ -60,7 +65,11 @@ launchInstance <- function( imageId
                           , throttle           = 1
                           , username           = "ec2-user"
                           , groupname          = "ec2-user"
+                          , subnetId           = NULL
+                          , networkInterface   = NULL
+                          , elasticIP          = NULL
                           , sshTimeout         = 10
+                          , sshKeyfile         = NULL
                           ) {
   
   # format TagSpecifications from tags
@@ -106,6 +115,8 @@ launchInstance <- function( imageId
                            , InstanceInitiatedShutdownBehavior = shutdownBehavior
                            , BlockDeviceMappings               = blockDeviceMappings
                            , TagSpecifications                 = tagSpecifications
+                           , SubnetId                          = subnetId
+                           , NetworkInterfaces                 = networkInterface
                            , MaxCount                          = 1
                            , MinCount                          = 1
                            )
@@ -115,7 +126,15 @@ launchInstance <- function( imageId
   instanceId <- resp$Instances[[1]]$InstanceId
   cat("The instance id is:", crayon::cyan(instanceId), "\n")
   
+  # Get a description of the instance
   instance <- getInstanceDescription(instanceId, throttle, username)
+
+  # If we need an elastic IP, associate it
+  if (!is.null(elasticIP)) {
+    cat("Allocating elastic IP address:", crayon::cyan(elasticIP), "\n")
+    ec2$associate_address(AllocationId = elasticIP, InstanceId =instanceId)
+    instance <- getInstanceDescription(instanceId, throttle, username)
+  }
   
   ## NB: the AWS API describe_instance_status function reports on whether or not
   ## the System and Interface are reachable.  However these checks are very slow
@@ -129,7 +148,7 @@ launchInstance <- function( imageId
   Sys.sleep(5)
   cat("Waiting for an ssh connection to:", crayon::cyan(host), "...\n  ")
   sshTimeouts <- 0
-  while (!trySSH(host)) {
+  while (!trySSH(host, sshKeyfile)) {
     if (sshTimeouts == sshTimeout) {
       cat( crayon::red(" failed.\n\n")
          , "Your instance is running but an error occured when trying to connect to it over ssh; be sure to terminate it using 'terminateInstance', the web console or AWS CLI!  It may be that we just need to wait longer for it to get up and running; try increasing the value of 'sshTimeout'.  Also check to make sure that 'sshd' is installed and configured on your AMI and that the firewall is setup corretly through your security group.\n\nYou might try debugging the problem by running ssh in verbose mode with this terminal command:\n", crayon::cyan("ssh -v", host)
@@ -147,7 +166,7 @@ launchInstance <- function( imageId
   if (!is.null(blockDevices)) {
     
     cat("Connecting to ssh to format and mount block devices...\n  ")
-    session <- ssh::ssh_connect(host)
+    session <- ssh::ssh_connect(host, sshKeyfile)
       lapply( blockDevices
             , function(l) {
                 mount       <- l$mount
@@ -199,13 +218,14 @@ launchInstance <- function( imageId
   
   cat(crayon::green("\nSuccess!"), "Your instance is ready.\n")
   
-  instance$name  <- tags$Name
-  instance$owner <- paste(username, groupname, sep = ":")
+  instance$name    <- tags$Name
+  instance$owner   <- paste(username, groupname, sep = ":")
+  instance$keyfile <- sshKeyfile
   instance
 }
 
-trySSH <- function(host) {
-  tryCatch( { suppressMessages(session <- ssh::ssh_connect(host))
+trySSH <- function(host, keyfile) {
+  tryCatch( { suppressMessages(session <- ssh::ssh_connect(host, keyfile))
               ssh::ssh_disconnect(session)
               TRUE
             }
@@ -288,7 +308,6 @@ isRunning <- function(instanceId) {
     }
   , error = function(e) {
       cat(crayon::red(" connection error; trying again..."), connectionError(instanceId))
-      # stop(e)
       FALSE
     }
   )
@@ -424,7 +443,7 @@ launchJobs <- function( instance
   remotePaths <- file.path(scripts$remotePath, c(scripts$jobs, scripts$launch), fsep = "/")
 
   cat("Opening ssh connection to the instance...\n  ")
-  session <- ssh::ssh_connect(instance$host)
+  session <- ssh::ssh_connect(instance$host, instance$keyfile)
   cat(crayon::green("  done.\n"))
   
   cat("Copying scripts to the instance...")
@@ -519,7 +538,7 @@ getStatus <- function(instance, session = NULL) {
   
   if (is.null(session)) {
     cat("Opening ssh connection to instance...\n  ")
-    session <- ssh::ssh_connect(instance$host)
+    session <- ssh::ssh_connect(instance$host, instance$keyfile)
     cat(crayon::green("  done.\n"))
   }
   
@@ -639,7 +658,7 @@ getStatus <- function(instance, session = NULL) {
 waitForJobs <- function(instance, wait = 10) {
   
   cat("Opening ssh connection to instance...\n  ")
-  session <- ssh::ssh_connect(instance$host)
+  session <- ssh::ssh_connect(instance$host, instance$keyfile)
   cat(crayon::green("  done.\n"))
   
   cat("Waiting for all jobs to finish...")
