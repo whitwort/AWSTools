@@ -47,8 +47,8 @@
 #' @param groupname Linux group name to use when setting permissions
 #' @param elasticIP If non-NULL should be an elastic IP allocation ID "eipalloc-...".  
 #' @param sshTimeout How many times to re-test connecting over ssh after
-#'   recieving a timeout or connection refused error.  This function waits the
-#'   duraction of 'throttle' between attempts.
+#'   receiving a timeout or connection refused error.  This function waits the
+#'   duration of 'throttle' between attempts.
 #' @param sshKeyfile Path to an OpenSSH formatted (PEM) keyfile.
 #'
 #' @return An \code{instance} object that can be used with other functions in
