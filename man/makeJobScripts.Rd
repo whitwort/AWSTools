@@ -4,8 +4,13 @@
 \alias{makeJobScripts}
 \title{Generate a set of shell scripts to launch individual jobs}
 \usage{
-makeJobScripts(template, jobScripts, processes = 1,
-  scriptPath = "rendered-scripts", ...)
+makeJobScripts(
+  template,
+  jobScripts,
+  processes = 1,
+  scriptPath = "rendered-scripts",
+  ...
+)
 }
 \arguments{
 \item{template}{Path to the script whisker template.}

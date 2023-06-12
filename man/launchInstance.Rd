@@ -4,10 +4,23 @@
 \alias{launchInstance}
 \title{Launch an EC2 instance}
 \usage{
-launchInstance(imageId, keyName, securityGroupIds,
-  instanceType = "t2.micro", shutdownBehavior = "terminate",
-  tags = NULL, blockDevices = NULL, throttle = 1,
-  username = "ec2-user", groupname = "ec2-user", sshTimeout = 10)
+launchInstance(
+  imageId,
+  keyName,
+  securityGroupIds,
+  instanceType = "t2.micro",
+  shutdownBehavior = "terminate",
+  tags = NULL,
+  blockDevices = NULL,
+  throttle = 1,
+  username = "ec2-user",
+  groupname = "ec2-user",
+  subnetId = NULL,
+  networkInterface = NULL,
+  elasticIP = NULL,
+  sshTimeout = 10,
+  sshKeyfile = NULL
+)
 }
 \arguments{
 \item{imageId}{The image-id for the AMI used to launch the instance.}
@@ -47,9 +60,18 @@ The user must have sudo privileges. Default is set for Amazon Linux AMIs.}
 
 \item{groupname}{Linux group name to use when setting permissions}
 
+\item{subnetId}{VPC subnet ID "subnet-..." to launch the instance in.}
+
+\item{networkInterface}{the Id of a network interfaces; must be compatible
+with subnet and security groups if non-default.}
+
+\item{elasticIP}{If non-NULL, elastic IP ID "eipalloc-..." to associate with the instance.}
+
 \item{sshTimeout}{How many times to re-test connecting over ssh after
-recieving a timeout or connection refused error.  This function waits the
-duraction of 'throttle' between attempts.}
+receiving a timeout or connection refused error.  This function waits the
+duration of 'throttle' between attempts.}
+
+\item{sshKeyfile}{Path to an OpenSSH formatted (PEM) keyfile.}
 }
 \value{
 An \code{instance} object that can be used with other functions in
@@ -66,8 +88,8 @@ package.
 This function is designed to be as simple as possible and does not support
 the vast majority of configuration options available when launching EC2
 instances.  If it doesn't meet your needs see the \code{paws} package for a
-full featured EC2 SDK.  You can use the `paws::ec2()$run_instances`
-function to launch your instance and then pass the `InstanceID` to the
+full featured EC2 SDK.  You can use the `paws::ec2()$run_instances` function
+to launch your instance and then pass the `InstanceID` to the
 \code{\link{getInstanceDescription}} function to generate an \code{instance}
 object to use with the other functions in this package.
 }

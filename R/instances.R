@@ -41,11 +41,11 @@
 #'   default is extremely conservative.
 #' @param username The administrator username to use when logging in over ssh.
 #'   The user must have sudo privileges. Default is set for Amazon Linux AMIs.
-#' @param subnetId The id of the subnet to use.
+#' @param groupname Linux group name to use when setting permissions
+#' @param subnetId VPC subnet ID "subnet-..." to launch the instance in.
 #' @param networkInterface the Id of a network interfaces; must be compatible
 #'   with subnet and security groups if non-default.
-#' @param groupname Linux group name to use when setting permissions
-#' @param elasticIP If non-NULL should be an elastic IP allocation ID "eipalloc-...".  
+#' @param elasticIP If non-NULL, elastic IP ID "eipalloc-..." to associate with the instance.  
 #' @param sshTimeout How many times to re-test connecting over ssh after
 #'   receiving a timeout or connection refused error.  This function waits the
 #'   duration of 'throttle' between attempts.
@@ -151,7 +151,7 @@ launchInstance <- function( imageId
   while (!trySSH(host, sshKeyfile)) {
     if (sshTimeouts == sshTimeout) {
       cat( crayon::red(" failed.\n\n")
-         , "Your instance is running but an error occured when trying to connect to it over ssh; be sure to terminate it using 'terminateInstance', the web console or AWS CLI!  It may be that we just need to wait longer for it to get up and running; try increasing the value of 'sshTimeout'.  Also check to make sure that 'sshd' is installed and configured on your AMI and that the firewall is setup corretly through your security group.\n\nYou might try debugging the problem by running ssh in verbose mode with this terminal command:\n", crayon::cyan("ssh -v", host)
+         , "Your instance is running but an error occurred when trying to connect to it over ssh; be sure to terminate it using 'terminateInstance', the web console or AWS CLI!  It may be that we just need to wait longer for it to get up and running; try increasing the value of 'sshTimeout'.  Also check to make sure that 'sshd' is installed and configured on your AMI and that the firewall is setup corretly through your security group.\n\nYou might try debugging the problem by running ssh in verbose mode with this terminal command:\n", crayon::cyan("ssh -v", host)
          )
       return(instance)
     }

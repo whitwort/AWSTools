@@ -4,8 +4,7 @@
 \alias{startInstance}
 \title{Starts a stopped instance}
 \usage{
-startInstance(instanceId, throttle = 1, username = "ec2-user",
-  sshTimeout = 10)
+startInstance(instanceId, throttle = 1, username = "ec2-user", sshTimeout = 10)
 }
 \arguments{
 \item{instanceId}{The Instance ID for the stopped instance to start.}

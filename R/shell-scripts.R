@@ -64,13 +64,14 @@ makeJobScripts <- function( template
 #'   \code{\link{makeJobScripts}}.
 #' @param launchScript The name of the launch script file to be created.
 #' @param workingPath Path to the working directory on remote EC2 instances
-#'   where scripts should be copied and executed.
-#' @param logPath Folder where logs recording stdout and stderr streams for each
+#'   where scripts should be copied and executed. Default is /home/\code{username}/.
+#' @param logs Folder where logs recording stdout and stderr streams for each
 #'   job should be saved.  This is created as a subdirectory of
 #'   \code{workingPath}.
+#' @param username The username being used on the instance.
 #' @param prelaunch Commands to run before the jobs are launched.
 #' @param postlaunch Commands to run after all jobs have finished.  The default
-#'   shutsdown the instance after all of the jobs have finished running.  Set
+#'   shuts down the instance after all of the jobs have finished running.  Set
 #'   to an empty string to override this behavior.
 #'
 #' @return Named list with job and launch script file names.  Passed to
@@ -79,18 +80,19 @@ makeJobScripts <- function( template
 #' 
 makeLaunchScript <- function( scripts
                             , launchScript = "launch.sh"
-                            , workingPath  = "~"
+                            , workingPath  = ""
                             , logs         = "logs"
+                            , username     = "ec2-user"
                             , prelaunch    = ""
                             , postlaunch   = 'wait; sudo shutdown now'
                             ) {
   
   scripts$launch     <- launchScript
-  scripts$remotePath <- workingPath
-  scripts$logPath    <- file.path(workingPath, logs, fsep = "/")
+  scripts$remotePath <- file.path("/home", username, fsep = "/")
+  scripts$logPath    <- file.path(scripts$remotePath, logs, fsep = "/")
   
   cat( "#!/bin/sh\n"
-     , paste("cd", workingPath)
+     , paste("cd", scripts$remotePath)
      , paste("mkdir", scripts$logPath)
      , prelaunch
      , paste( paste0( "nohup "

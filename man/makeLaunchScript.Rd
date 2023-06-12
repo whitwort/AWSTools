@@ -4,9 +4,15 @@
 \alias{makeLaunchScript}
 \title{Generate a script to launch a batch of jobs}
 \usage{
-makeLaunchScript(scripts, launchScript = "launch.sh",
-  workingPath = "~", logs = "logs", prelaunch = "",
-  postlaunch = "wait; sudo shutdown now")
+makeLaunchScript(
+  scripts,
+  launchScript = "launch.sh",
+  workingPath = "",
+  logs = "logs",
+  username = "ec2-user",
+  prelaunch = "",
+  postlaunch = "wait; sudo shutdown now"
+)
 }
 \arguments{
 \item{scripts}{List with job script file names returned by
@@ -15,17 +21,19 @@ makeLaunchScript(scripts, launchScript = "launch.sh",
 \item{launchScript}{The name of the launch script file to be created.}
 
 \item{workingPath}{Path to the working directory on remote EC2 instances
-where scripts should be copied and executed.}
+where scripts should be copied and executed. Default is /home/\code{username}/.}
+
+\item{logs}{Folder where logs recording stdout and stderr streams for each
+job should be saved.  This is created as a subdirectory of
+\code{workingPath}.}
+
+\item{username}{The username being used on the instance.}
 
 \item{prelaunch}{Commands to run before the jobs are launched.}
 
 \item{postlaunch}{Commands to run after all jobs have finished.  The default
-shutsdown the instance after all of the jobs have finished running.  Set
+shuts down the instance after all of the jobs have finished running.  Set
 to an empty string to override this behavior.}
-
-\item{logPath}{Folder where logs recording stdout and stderr streams for each
-job should be saved.  This is created as a subdirectory of
-\code{workingPath}.}
 }
 \value{
 Named list with job and launch script file names.  Passed to

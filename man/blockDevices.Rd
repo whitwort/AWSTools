@@ -5,9 +5,15 @@
 \title{Describe one or more block devices (EBS) to create, format, and mount on an
 EC2 instance}
 \usage{
-blockDevices(deviceName = "/dev/xvdf", volumeSize = 8,
-  deleteOnTermination = TRUE, volumeType = "gp2", encrypted = FALSE,
-  fsType = "ext4", mountDir = "/data")
+blockDevices(
+  deviceName = "/dev/xvdf",
+  volumeSize = 8,
+  deleteOnTermination = TRUE,
+  volumeType = "gp2",
+  encrypted = FALSE,
+  fsType = "ext4",
+  mountDir = "/data"
+)
 }
 \arguments{
 \item{deviceName}{A character vector giving the names of one or more block
